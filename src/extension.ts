@@ -34,10 +34,10 @@ function getcfg() {
 
 
 interface Cmd {
-	when: string
+	when: string //when is support
 	command: string[]
-	title: string
-
+	title: string //command title
+	type: string // js,python,bash ,default is js
 }
 
 async function extEntry() {
@@ -47,7 +47,7 @@ async function extEntry() {
 	const value = cfg.get('custom-kit.commands') || [];
 
 	const extCtx = makeCtx()
-	const cmds = []
+	const cmds: Cmd[] = []
 	const titles = []
 	for (let i in value) {
 		if (value[i] && value[i].title && value[i].command) {
@@ -64,10 +64,10 @@ async function extEntry() {
 	cmds.filter(e => e.title == se)[0].command.forEach(e => {
 		try {
 			compileCode(e)(extCtx)
-		}catch(e) {
+		} catch (e) {
 			console.error(e)
 		}
-		
+
 	})
 
 }
@@ -77,10 +77,10 @@ import { executeShellCommand } from './ext2.ts'
 function makeCtx() {
 	return {
 		hello: 'bfak',
-		alert: (...w ) => {
+		alert: (...w) => {
 			vscode.window.showInformationMessage(w.join(''));
 		},
-		shell: async (...w ) => {
+		shell: async (...w) => {
 			return await executeShellCommand(...w)
 		}
 	}
@@ -88,7 +88,8 @@ function makeCtx() {
 
 
 function compileCode(src) {
-	let wrapper = `const app_ = async () =>{${src}}\n (async function() { await app_() })();`
+	// let wrapper = `const app_ = async () =>{${src}}\n (async function() { await app_() })();`
+	let wrapper = `(async function(){ ${src} })()`
 	src = 'with (sandbox) {' + wrapper + '}'
 	const code = new Function('sandbox', src)
 
