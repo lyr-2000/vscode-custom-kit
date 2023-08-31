@@ -2,6 +2,9 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
+interface PluginParam {
+	cmd: string
+}
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -13,10 +16,10 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('custom-kit.helloWorld', async () => {
+	let disposable = vscode.commands.registerCommand('custom-kit.helloWorld', async (opts: PluginParam = {}) => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
-		await extEntry(context)
+		await extEntry(context, opts)
 	});
 
 	context.subscriptions.push(disposable);
@@ -40,7 +43,7 @@ function getcfg() {
 
 
 
-async function extEntry(context: vscode.ExtensionContext) {
+async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	// 获取全局 settings.json 配置
 	let cfg = getcfg();
 	// 获取特定配置项的值
@@ -59,20 +62,35 @@ async function extEntry(context: vscode.ExtensionContext) {
 			titles.push(value[i].title)
 		}
 	}
-	let se = await exprHelper.showSelectBox(titles,null,'mainEntry')
-	cmds.filter(e => e.title == se)[0].command.forEach(e => {
-		try {
-			compileCode(e)(extCtx)
-		} catch (e) {
-			console.error(e)
+	if (param.cmd) {
+		// has command
+		const all = cmds.filter(e => e.title == param.cmd)
+		if (all && all.length) {
+			compileCode(all[0].command)(extCtx)
+			return
 		}
 
-	})
+	}
+	let se = await exprHelper.showSelectBox(titles, null, 'mainEntry')
+	let t = cmds.filter(e => e.title == se)
+	if (t && t.length) {
+		t[0].command.forEach(e => {
+			try {
+				compileCode(e)(extCtx)
+			} catch (e) {
+				console.error(e)
+			}
+
+		})
+	}
+
+
 
 }
 
 import {
-	executeShellCommand, tshell
+	executeShellCommand, tshell,
+	spawn,
 
 
 
@@ -84,7 +102,7 @@ import ExprHelper, { resolveExpr } from './expr.ts';
 class CommandUtil {
 	private context: vscode.ExtensionContext
 	public exprHelper = new ExprHelper();
-	public constructor(c :any) {
+	public constructor(c: any) {
 		this.context = c
 	}
 
@@ -111,7 +129,7 @@ class CommandUtil {
 		const options = box || []
 		// let id = id0;
 		if (id == 'box') {
-			id +=  _hashCode(options)
+			id += _hashCode(options)
 		}
 
 		const newOptions = this.getOrder(id, options)
@@ -139,8 +157,8 @@ function _hashCode(...u) {
 	return hash;
 }
 
-function makeCtx(ctx:any, helper: CommandUtil) {
-	if (helper==null) {
+function makeCtx(ctx: any, helper: CommandUtil) {
+	if (helper == null) {
 		vsocde.window.showErrorMessage('invalid helper')
 		// error(helper.toString())
 		return
@@ -154,6 +172,9 @@ function makeCtx(ctx:any, helper: CommandUtil) {
 		error: (...w) => {
 			return vscode.window.showErrorMessage(w.join(''));
 		},
+		spawn: (...w) => {
+			return spawn(...w)
+		},
 		shell: async (...w) => {
 			return await executeShellCommand(...w)
 		},
@@ -165,8 +186,44 @@ function makeCtx(ctx:any, helper: CommandUtil) {
 		showSelectBox: (...w) => {
 			return helper.showSelectBox(...w)
 		},
+		execCommand(...w) {
+			return vscode.commands.executeCommand(...w)
+		},
+		selectedText() {
+			const editor = vscode.window.activeTextEditor;
+			const selection = editor.selection;
+			const selectedText = editor.document.getText(selection);
+			return selectedText
+		},
+		copy(text: string) {
+			return vscode.env.clipboard.writeText(text);
+		},
+		quote(w: string) {
+			return w.replace(/^["'](.+(?=["']$))["']$/, '$1');
+		},
+		unquote(str) {
+			return str.replace(/^"(.*)"$/, '$1');
+		},
+		paste(all: string[]) {
+			const editor = vscode.window.activeTextEditor;
+			const selection = editor.selection;
+			// const selectedText = editor.document.getText(selection);
+			// Replace the selected text
+			if (all == null || all.length == 0) {
+				editor.edit(async (editBuilder) => {
+					const text = await vscode.env.clipboard.readText();
+					editBuilder.replace(selection, text);
+				});
+				return
+			}
+			editor.edit((editBuilder) => {
+				editBuilder.replace(selection, all.join('\n'));
+			});
+		},
 
 	}
+
+}
 }
 
 
