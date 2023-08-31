@@ -49,7 +49,6 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	// 获取特定配置项的值
 	const value = cfg.get('custom-kit.commands') || [];
 	const exprHelper = new CommandUtil(context)
-	const extCtx = makeCtx(context, exprHelper)
 	const cmds: Cmd[] = []
 	const titles = []
 	for (let i in value) {
@@ -66,6 +65,8 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 		// has command
 		const all = cmds.filter(e => e.title == param.cmd)
 		if (all && all.length) {
+			param.current = all
+			const extCtx = makeCtx(context, exprHelper,param)
 			compileCode(all[0].command)(extCtx)
 			return
 		}
@@ -74,6 +75,8 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	let se = await exprHelper.showSelectBox(titles, null, 'mainEntry')
 	let t = cmds.filter(e => e.title == se)
 	if (t && t.length) {
+		param.current = t
+		const extCtx = makeCtx(context, exprHelper,param)
 		t[0].command.forEach(e => {
 			try {
 				compileCode(e)(extCtx)
@@ -157,7 +160,7 @@ function _hashCode(...u) {
 	return hash;
 }
 
-function makeCtx(ctx: any, helper: CommandUtil) {
+function makeCtx(ctx: any, helper: CommandUtil,params) {
 	if (helper == null) {
 		vsocde.window.showErrorMessage('invalid helper')
 		// error(helper.toString())
@@ -166,6 +169,10 @@ function makeCtx(ctx: any, helper: CommandUtil) {
 	return {
 		ctx: ctx,
 		window: vscode.window,
+		params,
+		toString(w) {
+			return JSON.stringify(w)
+		},
 		alert: (...w) => {
 			return vscode.window.showInformationMessage(w.join(''));
 		},
