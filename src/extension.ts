@@ -127,9 +127,10 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 						continue
 					}
 				}
+				let cmdx = value[i].command || value[i].commands
 				cmds.push({
 					when: value[i].when,
-					command: [[].concat(value[i].command).join('\n')],
+					command: [[].concat(cmdx).join('\n')],
 					title: value[i].title,
 					params: value[i].params,
 				})
