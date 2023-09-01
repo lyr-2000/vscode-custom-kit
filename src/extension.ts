@@ -6,12 +6,11 @@ import * as vscode from 'vscode';
 import {
 	executeShellCommand, tshell,
 	spawn,
-
-
-
+	request,
 } from './ext2.ts'
 
 import ExprHelper, { resolveExpr } from './expr.ts';
+import { PanelName } from './const.ts';
 
 interface PluginParam {
 	title: string
@@ -33,14 +32,28 @@ export function activate(context: vscode.ExtensionContext) {
 	let disposable = vscode.commands.registerCommand('custom-kit.helloWorld', async (opts: PluginParam = {}) => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
-		await extEntry(context, opts)
+		try {
+			await extEntry(context, opts)
+		} catch (e) {
+			error(e)
+			console.error(e.stack)
+		}
 	});
 
 	context.subscriptions.push(disposable);
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() { }
+export function deactivate() {
+	for (let k in GlobalObject) {
+		let obj = GlobalObject[k]
+		if (obj && obj.dispose) {
+			obj.dispose()
+			GlobalObject[k] = null
+		}
+	}
+
+}
 
 
 
@@ -56,17 +69,17 @@ function getcfg() {
 	return vscode.workspace.getConfiguration();
 }
 
-function evalBool(helper :CommandUtil,exprs: string) {
-	if(exprs == '' || exprs === true) {
+function evalBool(helper: CommandUtil, exprs: string) {
+	if (exprs == '' || exprs === true) {
 		return true
 	}
-	let newExpr = resolveExpr(helper.exprHelper,exprs,{},true)
-	let fn = compileCode(`return ${newExpr}`,true)
+	let newExpr = resolveExpr(helper.exprHelper, exprs, {}, true)
+	let fn = compileCode(`return ${newExpr}`, true, false)
 	try {
 		return fn({})
-	}catch (e) {
-		error('invalid when expr ',e.toString())
-		return false 
+	} catch (e) {
+		error(`invalid when expr ${exprs} `, e.toString())
+		return false
 	}
 }
 
@@ -78,6 +91,12 @@ function error(...s) {
 	return vscode.window.showErrorMessage(s.join(','))
 }
 
+function isDollarExpr(s: string) {
+	if (s && typeof s == 'string') {
+		return s.includes('${') && s.includes('}')
+	}
+	return false
+}
 
 async function waitPromise(fn) {
 	return await fn()
@@ -92,19 +111,31 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	const exprHelper = new CommandUtil(context)
 	const cmds: Cmd[] = []
 	const titles = []
-	for (let i in value) {
-		if (value[i] && value[i].title && value[i].command) {
-			if (value[i].when != null) {
-				if (typeof value[i].when != 'string' || !evalBool(exprHelper,value[i].when)) {
-					continue
+	if (value.length > 0) {
+		const titleMap = new Map<string, number>()
+		for (let i in value) {
+			if (value[i] && value[i].title && value[i].command) {
+				// has repeated title
+				let title = value[i].title
+				if (titleMap.has(title)) {
+					// continue
+					value[i].title = value[i].title + ` (${titleMap.get(value[i].title)})`
 				}
+				// has condition 
+				if (value[i].when != null) {
+					if (typeof value[i].when != 'string' || !evalBool(exprHelper, value[i].when)) {
+						continue
+					}
+				}
+				cmds.push({
+					when: value[i].when,
+					command: [[].concat(value[i].command).join('\n')],
+					title: value[i].title,
+					params: value[i].params,
+				})
+				titleMap.set(title, Number(titleMap.get(title) || 0) + 1)
+				titles.push(value[i].title)
 			}
-			cmds.push({
-				when: value[i].when,
-				command: [].concat(value[i].command),
-				title: value[i].title
-			})
-			titles.push(value[i].title)
 		}
 	}
 	if (param.title) {
@@ -128,7 +159,9 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 		}
 		if (param.command && typeof param.command == 'string') {
 			// your custom code
-			param.current = 'custom'
+			param.current = {
+				'type': 'custom'
+			}
 			const extCtx = makeCtx(context, exprHelper, param)
 			try {
 				let fn = compileCode(param.command)
@@ -143,8 +176,11 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 		}
 	}
 	// select an option command to run
-	let se = await exprHelper.showSelectBox(titles, null, '#mainEntry')
-	let t = cmds.filter(e => e.title == se)
+	let selectedTitle = await exprHelper.showSelectBox(titles, null, '#mainEntry')
+	if (!selectedTitle) {
+		return param
+	}
+	let t = cmds.filter(e => e.title == selectedTitle)
 	if (t && t.length) {
 		param.current = t[0]
 		const extCtx = makeCtx(context, exprHelper, param)
@@ -167,11 +203,14 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 
 }
 
-
+const GlobalObject = {
+	panel: null
+}
 
 class CommandUtil {
 	private context: vscode.ExtensionContext
 	public exprHelper = new ExprHelper();
+	// private static outputChannel: vscode.OutputChannel;
 	public constructor(c: any) {
 		this.context = c
 	}
@@ -206,6 +245,52 @@ class CommandUtil {
 		const selectedOption = await vscode.window.showQuickPick(newOptions, conf);
 		this.setOrder(id, [selectedOption, ...options])
 		return selectedOption
+	},
+	private getOutputChannel() {
+		let panel = GlobalObject.panel
+		if (!panel) {
+			let cfg = getcfg()
+			let name = cfg.get('custom-kit.panelName') || cfg.get('custom-kit.terminal.title') || PanelName
+			panel = vscode.window.createOutputChannel(name)
+
+			GlobalObject.panel = panel
+			panel.show()
+
+		}
+		return panel
+	},
+	public outputClear() {
+		let panel = this.getOutputChannel()
+		panel?.clear()
+	}
+	public escapeColor(cmd: string) {
+		if (!cmd) {
+			return ''
+		}
+		if (typeof cmd == 'object') {
+			if (cmd.toString) {
+				cmd = cmd.toString()
+			}
+		}
+		if (!cmd.replace) {
+			return cmd
+		}
+		return cmd.replace(
+			/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+	}
+	public output(msg: string, nextline: boolean, show = true, escape = true) {
+		if (escape && msg) {
+			// escape ascci 
+			msg = this.escapeColor(msg)
+		}
+		let panel = this.getOutputChannel()
+		if (!panel) {
+			throw new Error("illegal panel state");
+		}
+		if (nextline) {
+			return panel.appendLine(msg)
+		}
+		return panel.append(msg)
 	}
 
 }
@@ -232,12 +317,30 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		vsocde.window.showErrorMessage('invalid helper')
 		return
 	}
+	if (params && params.current && params.current.params) {
+		if (typeof params.current.params == 'object') {
+			let p0 = params.current.params
+			for (let i in p0) {
+				let value = p0[i]
+				if (value && typeof value == 'string') {
+					if (isDollarExpr(value)) {
+						p0[i] = resolveExpr(helper.exprHelper, value)
+					}
+				}
+			}
+		}
+	}
 	return {
 		ctx: ctx,
 		window: vscode.window,
-		params,
+		payload: params,
+		current: params?.current,
+		params: params?.current?.params,
 		toString,
 		error,
+		escapeColor(...w) {
+			return helper.escapeColor(...w)
+		},
 		alert: (...w) => {
 			return vscode.window.showInformationMessage(w.join(''));
 		},
@@ -275,37 +378,62 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 			return vscode.env.clipboard.writeText(text);
 		},
 		quote(w: string) {
-			return w.replace(/^["'](.+(?=["']$))["']$/, '$1');
+			// return w.replace(/^["'](.+(?=["']$))["']$/, '$1');
+			return '"' + w + '"'
 		},
 		unquote(str) {
 			return str.replace(/^"(.*)"$/, '$1');
 		},
-		paste(all: string[]) {
+		output(msg: string, nextline: boolean, show = true, escape = true) {
+			return helper.output(msg, nextline, show, escape)
+		},
+		paste(...all) {
 			const editor = vscode.window.activeTextEditor;
 			const selection = editor.selection;
-			// const selectedText = editor.document.getText(selection);
-			// Replace the selected text
 			if (all == null || all.length == 0) {
-				editor.edit(async (editBuilder) => {
-					const text = await vscode.env.clipboard.readText();
-					editBuilder.replace(selection, text);
-				});
+				vscode.commands.executeCommand('editor.action.clipboardPasteAction')
 				return
 			}
 			editor.edit((editBuilder) => {
 				editBuilder.replace(selection, all.join('\n'));
 			});
 		},
+		async request(...w) {
+			let res = await request(...w)
+			return await res.text()
+		},
+		fetch(...w) {
+			return request(...w)
+		}
 
 	}
 
 }
 
 
+function validSafe(src: string) {
+	let stk = 0
+	for (var i = 0; i < src.length; i++) {
+		if (src[i] == '{') {
+			stk++
+		} else if (src[i] == '}') {
+			stk--
+		}
+		if (stk < 0) {
+			return false
+		}
+	}
+	return stk == 0
 
-function compileCode(src,noAsync = false) {
-	let fnprefix = noAsync? '':`async `
-	// let fnprefix = '
+}
+
+function compileCode(src, noAsync = false, valid = true) {
+	if (valid) {
+		if (!validSafe(src)) {
+			throw new Error(`illegal code ${src}`);
+		}
+	}
+	let fnprefix = noAsync ? '' : `async `
 	let wrapper = `return (${fnprefix} () => { ${src} }) ()`
 	src = `with (sandbox) {  ${wrapper}\n} `
 	// vscode.window.showInformationMessage(src)

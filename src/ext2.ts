@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as childProcess from 'child_process';
+// import fetch from 'node-fetch'
 
 
 
@@ -73,4 +74,12 @@ export function tshell(text: string, conf: tshellConfig = { show: true }) {
     terminal.show()
   }
   return terminal
+}
+
+import fetch from 'node-fetch';
+
+
+
+export function request(url, ...opt) {
+  return fetch(url, ...opt)
 }
