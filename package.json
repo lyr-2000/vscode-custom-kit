@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "custom-kit.helloWorld",
-        "title": "Hello World"
+        "command": "custom-kit.runCommand",
+        "title": "run Command [kit]"
       }
     ]
   },
