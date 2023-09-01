@@ -2,8 +2,22 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
+
+import {
+	executeShellCommand, tshell,
+	spawn,
+
+
+
+} from './ext2.ts'
+
+import ExprHelper, { resolveExpr } from './expr.ts';
+
 interface PluginParam {
-	cmd: string
+	title: string
+	command: string
+	err: any
+	result: any
 }
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -36,12 +50,39 @@ interface Cmd {
 	title: string //command title
 	type: string // js,python,bash ,default is js
 }
+
 function getcfg() {
 	// 默认配置
 	return vscode.workspace.getConfiguration();
 }
 
+function evalBool(helper :CommandUtil,exprs: string) {
+	if(exprs == '' || exprs === true) {
+		return true
+	}
+	let newExpr = resolveExpr(helper.exprHelper,exprs,{},true)
+	let fn = compileCode(`return ${newExpr}`,true)
+	try {
+		return fn({})
+	}catch (e) {
+		error('invalid when expr ',e.toString())
+		return false 
+	}
+}
 
+function toString(w) {
+	return JSON.stringify(w)
+}
+
+function error(...s) {
+	return vscode.window.showErrorMessage(s.join(','))
+}
+
+
+async function waitPromise(fn) {
+	return await fn()
+
+}
 
 async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	// 获取全局 settings.json 配置
@@ -53,6 +94,11 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	const titles = []
 	for (let i in value) {
 		if (value[i] && value[i].title && value[i].command) {
+			if (value[i].when != null) {
+				if (typeof value[i].when != 'string' || !evalBool(exprHelper,value[i].when)) {
+					continue
+				}
+			}
 			cmds.push({
 				when: value[i].when,
 				command: [].concat(value[i].command),
@@ -61,45 +107,66 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 			titles.push(value[i].title)
 		}
 	}
-	if (param.cmd) {
+	if (param.title) {
 		// has command
-		const all = cmds.filter(e => e.title == param.cmd)
+		const all = cmds.filter(e => e.title == param.title)
 		if (all && all.length) {
-			param.current = all
-			const extCtx = makeCtx(context, exprHelper,param)
-			compileCode(all[0].command)(extCtx)
-			return
+			param.current = all[0]
+			const extCtx = makeCtx(context, exprHelper, param)
+			let alls = all[0].command
+			for (let i = 0; i < alls.length; i++) {
+				try {
+					let fn = compileCode(alls[i])
+					param.result = await waitPromise(() => fn(extCtx))
+				} catch (e) {
+					error(e.toString())
+					console.error(e.stack)
+					param.err = e
+				}
+			}
+			return param
+		}
+		if (param.command && typeof param.command == 'string') {
+			// your custom code
+			param.current = 'custom'
+			const extCtx = makeCtx(context, exprHelper, param)
+			try {
+				let fn = compileCode(param.command)
+				param.result = await waitPromise(() => fn(extCtx))
+			} catch (e) {
+				error(e.toString())
+				console.error(e.stack)
+				param.err = e
+			}
+
+			return param
+		}
+	}
+	// select an option command to run
+	let se = await exprHelper.showSelectBox(titles, null, '#mainEntry')
+	let t = cmds.filter(e => e.title == se)
+	if (t && t.length) {
+		param.current = t[0]
+		const extCtx = makeCtx(context, exprHelper, param)
+		for (let i = 0; i < t[0].command.length; i++) {
+			let cmd = t[0].command[i]
+			try {
+				let fn = compileCode(cmd)
+				param.result = await waitPromise(() => fn(extCtx))
+			} catch (e) {
+				error(e.toString())
+				console.error(e.stack)
+				param.err = e
+			}
 		}
 
 	}
-	let se = await exprHelper.showSelectBox(titles, null, 'mainEntry')
-	let t = cmds.filter(e => e.title == se)
-	if (t && t.length) {
-		param.current = t
-		const extCtx = makeCtx(context, exprHelper,param)
-		t[0].command.forEach(e => {
-			try {
-				compileCode(e)(extCtx)
-			} catch (e) {
-				console.error(e)
-			}
-
-		})
-	}
+	return param
 
 
 
 }
 
-import {
-	executeShellCommand, tshell,
-	spawn,
-
-
-
-} from './ext2.ts'
-
-import ExprHelper, { resolveExpr } from './expr.ts';
 
 
 class CommandUtil {
@@ -160,26 +227,24 @@ function _hashCode(...u) {
 	return hash;
 }
 
-function makeCtx(ctx: any, helper: CommandUtil,params) {
+function makeCtx(ctx: any, helper: CommandUtil, params) {
 	if (helper == null) {
 		vsocde.window.showErrorMessage('invalid helper')
-		// error(helper.toString())
 		return
 	}
 	return {
 		ctx: ctx,
 		window: vscode.window,
 		params,
-		toString(w) {
-			return JSON.stringify(w)
-		},
+		toString,
+		error,
 		alert: (...w) => {
 			return vscode.window.showInformationMessage(w.join(''));
 		},
-		error: (...w) => {
-			return vscode.window.showErrorMessage(w.join(''));
+		warn: (...w) => {
+			return vscode.window.showWarningMessage(w.join(''));
 		},
-		spawn: (...w) => {
+		shellx: (...w) => {
 			return spawn(...w)
 		},
 		shell: async (...w) => {
@@ -190,10 +255,14 @@ function makeCtx(ctx: any, helper: CommandUtil,params) {
 			return resolveExpr(helper?.exprHelper, expr,)
 		},
 		input: helper?.exprHelper.input,
-		showSelectBox: (...w) => {
-			return helper.showSelectBox(...w)
+		quickPick: (...w) => {
+			let id = w[2] != null ? w[2] : params.current?.title;
+			if (id.includes('#')) {
+				id = id.replace(/#/g, '')
+			}
+			return helper.showSelectBox(w[0], w[1], id)
 		},
-		execCommand(...w) {
+		codeCmd(...w) {
 			return vscode.commands.executeCommand(...w)
 		},
 		selectedText() {
@@ -231,18 +300,30 @@ function makeCtx(ctx: any, helper: CommandUtil,params) {
 	}
 
 }
-}
 
 
-function compileCode(src) {
-	// let wrapper = `const app_ = async () =>{${src}}\n (async function() { await app_() })();`
-	let wrapper = `(async function(){ ${src} })()`
-	src = 'with (sandbox) {' + wrapper + '}'
-	const code = new Function('sandbox', src)
 
+function compileCode(src,noAsync = false) {
+	let fnprefix = noAsync? '':`async `
+	// let fnprefix = '
+	let wrapper = `return (${fnprefix} () => { ${src} }) ()`
+	src = `with (sandbox) {  ${wrapper}\n} `
+	// vscode.window.showInformationMessage(src)
+	const fn = new Function('sandbox', src)
 	return function (sandbox) {
-		const sandboxProxy = new Proxy(sandbox, { has })
-		return code(sandboxProxy)
+		const theProxy = new Proxy(sandbox, {
+			has,
+			get(target, key, receiver) {
+				// 加固，防止逃逸
+				if (key === Symbol.unscopables) {
+					return undefined;
+				}
+				return Reflect.get(target, key, receiver);
+
+			},
+
+		})
+		return fn(theProxy)
 	}
 }
 

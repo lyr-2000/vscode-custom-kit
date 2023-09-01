@@ -3,7 +3,7 @@ import variable from './exprs/variable';
 import replace from './exprs/replace';
 
 
-export function resolveExpr(obj :ExprHelper,cmd: string,predefined: Record<string,string>={}) {
+export function resolveExpr(obj :ExprHelper,cmd: string,predefined: Record<string,string>={},quote=false) {
     return cmd && replace(cmd,  str => {
         let [variable, args = ''] = str.split(':');
 
@@ -29,7 +29,7 @@ export function resolveExpr(obj :ExprHelper,cmd: string,predefined: Record<strin
             default:
                 return obj.variable(variable as VariableScope);
         }
-    });
+    },quote);
 }
 
 export const variableMap = {

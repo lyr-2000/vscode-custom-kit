@@ -3,39 +3,38 @@ import * as childProcess from 'child_process';
 
 
 
-export async function spawn(cmd,stdin, args) {
-  return new Promise(function(resolve, reject) {
-      const ls = childProcess.spawn(cmd, args);
-
-      // Edit thomas.g: My child process generates binary data so I use buffers instead, see my comments inside the code 
-      // Edit thomas.g: let stdoutData = new Buffer(0)
+export async function spawn(cmd, stdin, args) {
+  return new Promise(function (resolve, reject) {
+    const ls = childProcess.spawn(cmd, args);
+    if (stdin && typeof stdin == 'string') {
       ls.stdin.write(stdin);
       ls.stdin.end()
-      let stdoutData = "";
-      let stderrData= "";
-      ls.stdout.on('data', (data) => {
+    }
+    let stdoutData = "";
+    let stderrData = "";
+    ls.stdout.on('data', (data) => {
       // Edit thomas.g: stdoutData = Buffer.concat([stdoutData, chunk]);
-          stdoutData += data;
-      });
+      stdoutData += data;
+    });
 
-      ls.stderr.on('data', (data) => {
-          stderrData += data;
-      });
+    ls.stderr.on('data', (data) => {
+      stderrData += data;
+    });
 
-      ls.on('close', (code) => {
-          if (stderrData){
-              reject(stderrData);
-          } else {
-              resolve(stdoutData);
-          }
-      });
-      ls.on('error', (err) => {
-          reject(err);
-      });
-  }) 
+    ls.on('close', (code) => {
+      if (stderrData) {
+        reject(stderrData);
+      } else {
+        resolve(stdoutData);
+      }
+    });
+    ls.on('error', (err) => {
+      reject(err);
+    });
+  })
 }
 
-export function executeShellCommand(command: string, opt = {
+export function executeShellCommand(command: string, opt0 = {}, opt = {
   cwd: vscode.workspace.rootPath,
   encoding: 'utf8',
 
