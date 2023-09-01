@@ -1,9 +1,10 @@
 {
   "name": "custom-kit",
   "displayName": "custom-kit",
-  "description": "",
+  "description": "vscode custom shell and script command runner",
   "version": "0.0.1",
   "icon": "images/cobalt2.png",
+  "publisher": "lyr-2000",
   "engines": {
     "vscode": "^1.81.0"
   },
@@ -69,5 +70,10 @@
   },
   "dependencies": {
     "node-fetch": "^3.3.2"
+  },
+  "__metadata": {
+    "publisherDisplayName": "lyr-2000"
+
   }
+
 }
