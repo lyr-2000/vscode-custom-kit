@@ -3,13 +3,12 @@
 import * as vscode from 'vscode';
 
 
-import {
-	executeShellCommand, tshell,
-	spawn,
-	request,
-} from './ext2.ts'
+// @ts-ignore
+import { executeShellCommand, tshell, spawn, request } from './ext2.ts'
 
+// @ts-ignore
 import ExprHelper, { resolveExpr } from './expr.ts';
+// @ts-ignore
 import { PanelName } from './const.ts';
 
 interface PluginParam {
@@ -17,6 +16,7 @@ interface PluginParam {
 	command: string
 	err: any
 	result: any
+	current: Cmd | Object // current command instance
 }
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -30,11 +30,12 @@ export function activate(context: vscode.ExtensionContext) {
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const cmd = 'custom-kit.runCommand'
-	let disposable = vscode.commands.registerCommand(cmd, async (opts: PluginParam = {}) => {
+	let disposable = vscode.commands.registerCommand(cmd, async (opts: PluginParam) => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		try {
-			await extEntry(context, opts)
+			// @ts-ignore
+			await extEntry(context, opts || {})
 		} catch (e) {
 			error(e)
 			console.error(e.stack)
@@ -63,6 +64,7 @@ interface Cmd {
 	command: string[]
 	title: string //command title
 	type: string // js,python,bash ,default is js
+	params: any
 }
 
 function getcfg() {
@@ -70,9 +72,12 @@ function getcfg() {
 	return vscode.workspace.getConfiguration();
 }
 
-function evalBool(helper: CommandUtil, exprs: string) {
-	if (exprs == '' || exprs === true) {
+function evalBool(helper: CommandUtil, exprs: string | boolean) {
+	if (exprs == null || exprs == '') {
 		return true
+	}
+	if (typeof exprs == 'boolean') {
+		return exprs
 	}
 	let newExpr = resolveExpr(helper.exprHelper, exprs, {}, true)
 	let fn = compileCode(`return ${newExpr}`, true, false)
@@ -112,9 +117,12 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	const exprHelper = new CommandUtil(context)
 	const cmds: Cmd[] = []
 	const titles = []
+	// @ts-ignore
 	if (value.length > 0) {
 		const titleMap = new Map<string, number>()
+		// @ts-ignore
 		for (let i in value) {
+			// @ts-ignore
 			if (value[i] && value[i].title && value[i].command) {
 				// has repeated title
 				let title = value[i].title
@@ -129,6 +137,7 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 					}
 				}
 				let cmdx = value[i].command || value[i].commands
+				//@ts-ignore
 				cmds.push({
 					when: value[i].when,
 					command: [[].concat(cmdx).join('\n')],
@@ -179,10 +188,11 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 	}
 	// select an option command to run
 	let selectedTitle = await exprHelper.showSelectBox(titles, null, '#mainEntry')
-	if (!selectedTitle) {
+	if (!selectedTitle || selectedTitle.length == 0) {
 		return param
 	}
-	let t = cmds.filter(e => e.title == selectedTitle)
+
+	let t = cmds.filter(e => selectedTitle.includes(e.title))
 	if (t && t.length) {
 		param.current = t[0]
 		const extCtx = makeCtx(context, exprHelper, param)
@@ -235,7 +245,7 @@ class CommandUtil {
 		}
 
 		return keys
-	},
+	}
 	public async showSelectBox(box: string[], conf: any = { placeHolder: 'Type or select option' }, id = 'box') {
 		const options = box || []
 		// let id = id0;
@@ -245,38 +255,43 @@ class CommandUtil {
 
 		const newOptions = this.getOrder(id, options)
 		const selectedOption = await vscode.window.showQuickPick(newOptions, conf);
-		this.setOrder(id, [selectedOption, ...options])
+		if (selectedOption && selectedOption.length) {
+			this.setOrder(id, [].concat(selectedOption).concat(options))
+		}
 		return selectedOption
-	},
+	}
 	private getOutputChannel() {
 		let panel = GlobalObject.panel
 		if (!panel) {
 			let cfg = getcfg()
 			let name = cfg.get('custom-kit.panelName') || cfg.get('custom-kit.terminal.title') || PanelName
-			panel = vscode.window.createOutputChannel(name)
-
+			panel = vscode.window.createOutputChannel(name as string)
 			GlobalObject.panel = panel
 			panel.show()
-
 		}
 		return panel
-	},
+	}
 	public outputClear() {
 		let panel = this.getOutputChannel()
 		panel?.clear()
 	}
-	public escapeColor(cmd: string) {
-		if (!cmd) {
+	public escapeColor(cmd: string | object = '') {
+		if (!cmd || cmd == null) {
 			return ''
 		}
+
 		if (typeof cmd == 'object') {
-			if (cmd.toString) {
+			// @ts-ignore 
+			if (cmd && cmd.toString) {
+				// @ts-ignore 
 				cmd = cmd.toString()
 			}
 		}
-		if (!cmd.replace) {
+		// @ts-ignore
+		if (cmd && !cmd.replace) {
 			return cmd
 		}
+		// @ts-ignore
 		return cmd.replace(
 			/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 	}
@@ -316,7 +331,7 @@ function _hashCode(...u) {
 
 function makeCtx(ctx: any, helper: CommandUtil, params) {
 	if (helper == null) {
-		vsocde.window.showErrorMessage('invalid helper')
+		vscode.window.showErrorMessage('invalid helper')
 		return
 	}
 	if (params && params.current && params.current.params) {
@@ -341,18 +356,23 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		toString,
 		error,
 		escapeColor(...w) {
+			// @ts-ignore
 			return helper.escapeColor(...w)
 		},
 		alert: (...w) => {
+			// @ts-ignore
 			return vscode.window.showInformationMessage(w.join(''));
 		},
 		warn: (...w) => {
+			// @ts-ignore
 			return vscode.window.showWarningMessage(w.join(''));
 		},
 		shellx: (...w) => {
+			// @ts-ignore
 			return spawn(...w)
 		},
 		shell: async (...w) => {
+			// @ts-ignore
 			return await executeShellCommand(...w)
 		},
 		tshell,
@@ -360,15 +380,15 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 			return resolveExpr(helper?.exprHelper, expr,)
 		},
 		input: helper?.exprHelper.input,
-		quickPick: (...w) => {
-			let id = w[2] != null ? w[2] : params.current?.title;
+		quickPick: (w0, w1 = null, w2 = null) => {
+			let id = w2 != null ? w2 : params.current?.title;
 			if (id.includes('#')) {
 				id = id.replace(/#/g, '')
 			}
-			return helper.showSelectBox(w[0], w[1], id)
+			return helper.showSelectBox(w0, w1, id)
 		},
-		codeCmd(...w) {
-			return vscode.commands.executeCommand(...w)
+		codeCmd(c, ...w) {
+			return vscode.commands.executeCommand(c, ...w)
 		},
 		selectedText() {
 			const editor = vscode.window.activeTextEditor;
@@ -400,12 +420,12 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 				editBuilder.replace(selection, all.join('\n'));
 			});
 		},
-		async request(...w) {
-			let res = await request(...w)
+		async request(url: string, ...w: any[]) {
+			let res = await request(url, ...w)
 			return await res.text()
 		},
-		fetch(...w) {
-			return request(...w)
+		fetch(url, ...w: any[]) {
+			return request(url, ...w)
 		}
 
 	}

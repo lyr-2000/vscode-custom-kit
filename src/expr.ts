@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import variable from './exprs/variable';
 import replace from './exprs/replace';
 
-
+export type VariableScope = keyof typeof variableMap;
 export function resolveExpr(obj :ExprHelper,cmd: string,predefined: Record<string,string>={},quote=false) {
     return cmd && replace(cmd,  str => {
         let [variable, args = ''] = str.split(':');

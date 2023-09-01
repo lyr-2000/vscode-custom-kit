@@ -3,8 +3,9 @@
   "displayName": "custom-kit",
   "description": "",
   "version": "0.0.1",
+  "icon": "images/cobalt2.png",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.81.0"
   },
   "categories": [
     "Other"
@@ -19,6 +20,14 @@
       }
     ]
   },
+  "bugs": {
+    "url":"https://github.com/lyr-2000/vscode-custom-kit/issues",
+    "email": "1957476540goldenwind@gmail.com"
+  },
+  "repository": {
+		"type": "git",
+		"url": "https://github.com/lyr-2000/vscode-custom-kit"
+	},
   "configuration": {
     "type": "object",
     "title": "Run Command Configuration",

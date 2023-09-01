@@ -3,7 +3,7 @@ import * as childProcess from 'child_process';
 // import fetch from 'node-fetch'
 
 function checkParam(...w) {
-  for (var i=0;i<w.length;i++) {
+  for (var i = 0; i < w.length; i++) {
     if (w[i] === undefined) {
       throw new Error(`undefined params arg${i}`);
     }
@@ -13,8 +13,8 @@ function checkParam(...w) {
 
 
 
-export async function spawn(cmd, stdin=null, args=null) {
-  checkParam(cmd,stdin,args)
+export async function spawn(cmd, stdin = null, args = null) {
+  checkParam(cmd, stdin, args)
   return new Promise(function (resolve, reject) {
     const ls = childProcess.spawn(cmd, args);
     if (stdin && typeof stdin == 'string') {
@@ -50,7 +50,7 @@ export function executeShellCommand(command: string, opt0 = {}, opt = {
   encoding: 'utf8',
 
 }): Promise<string> {
-  checkParam(command,opt0,opt)
+  checkParam(command, opt0, opt)
   return new Promise<string>((resolve, reject) => {
     childProcess.exec(command, opt, (error, stdout, stderr) => {
       if (error) {
@@ -67,10 +67,10 @@ function get(k, v) {
 }
 
 interface tshellConfig {
-  show: false
+  show: boolean
 }
 export function tshell(text: string, conf: tshellConfig = { show: true }) {
-  checkParam(text,conf)
+  checkParam(text, conf)
   // const terminal = vscode.window.cra
   const terminals = vscode.window.terminals;
   const k = get('custom-kit.terminal.title', '[cmd]')
@@ -92,7 +92,7 @@ import fetch from 'node-fetch';
 
 
 
-export function request(url, ...opt) {
-  checkParam(url,opt)
+export function request(url: string, ...opt: any[]) {
+  checkParam(url, opt)
   return fetch(url, ...opt)
 }
