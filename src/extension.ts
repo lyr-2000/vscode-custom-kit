@@ -14,13 +14,14 @@ import { PanelName } from './const.ts';
 interface PluginParam {
 	title: string
 	command: string
-	params: any
-	when: string
+	commands?: string
+	params?: any
+	when?: string
 
-	err: any
-	result: any
-	current: Cmd | Object // current command instance
-	isCustom: boolean
+	err?: any
+	result?: any
+	current?: Cmd | Object // current command instance
+	isCustom?: boolean
 }
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -208,7 +209,9 @@ async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginPar
 		// match command by title
 		const matchedCommand = cmds.filter(e => e.title == pluginParam.title)
 		const resToRun = await runCommands(context, matchedCommand, exprHelper, pluginParam)
-		if (resToRun ==null || resToRun.length == 0) {
+		if (resToRun == null || resToRun.length == 0) {
+			// match command
+			pluginParam.command = pluginParam.command || pluginParam.commands
 			// @ts-ignore
 			if (pluginParam.command && (typeof pluginParam.command == 'string' || pluginParam.command.length > 0)) {
 				// your custom code
