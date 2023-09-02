@@ -197,35 +197,47 @@ async function runCommands(context: vscode.ExtensionContext, inputCmd: Cmd[], ex
 	return res
 
 }
+async function runPluginCustomParam(context: vscode.ExtensionContext, exprHelper: CommandUtil, pluginParam: PluginParam) {
+	if (!pluginParam) {
+		return
+	}
+	if (!pluginParam.title) {
+		return
+	}
+	// match command
+	pluginParam.command = pluginParam.command || pluginParam.commands
+	// @ts-ignore
+	if (pluginParam.command && (typeof pluginParam.command == 'string' || pluginParam.command.length > 0)) {
+		// your custom code
+		pluginParam.isCustom = true
+		let newCmd: Cmd = {
+			when: pluginParam.when,
+			command: [[].concat(pluginParam.command).join('\n')],
+			title: pluginParam.title,
+			params: pluginParam.params,
+		} as Cmd
+		let done = await runCommands(context, [newCmd], exprHelper, pluginParam)
+		return pluginParam
+	}
+}
 
 async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginParam) {
+
 	// 获取特定配置项的值
 	const exprHelper = new CommandUtil(context)
+	// try custom command 
+	if (pluginParam && pluginParam.title && (pluginParam.command || pluginParam.commands)) {
+		return await runPluginCustomParam(context, exprHelper, pluginParam)
+	}
+
 	const res = loadCmd(exprHelper)
 	const cmds = res.commands
 
 	// custom command content
-	if (pluginParam.title) {
+	if (pluginParam && pluginParam.title) {
 		// match command by title
 		const matchedCommand = cmds.filter(e => e.title == pluginParam.title)
 		const resToRun = await runCommands(context, matchedCommand, exprHelper, pluginParam)
-		if (resToRun == null || resToRun.length == 0) {
-			// match command
-			pluginParam.command = pluginParam.command || pluginParam.commands
-			// @ts-ignore
-			if (pluginParam.command && (typeof pluginParam.command == 'string' || pluginParam.command.length > 0)) {
-				// your custom code
-				pluginParam.isCustom = true
-				let newCmd: Cmd = {
-					when: pluginParam.when,
-					command: [[].concat(pluginParam.command).join('\n')],
-					title: pluginParam.title,
-					params: pluginParam.params,
-				} as Cmd
-				let done = await runCommands(context, [newCmd], exprHelper, pluginParam)
-				return pluginParam
-			}
-		}
 		return pluginParam
 	}
 	// select an option command to run
@@ -239,15 +251,26 @@ async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginPar
 		}
 	})
 
-	let selectedTitle = await exprHelper.showSelectBox(titles, null, '#mainEntry')
+	let selectedTitle: string | string[] = await exprHelper.showSelectBox(titles, null, '#mainEntry')
 	if (!selectedTitle || selectedTitle.length == 0) {
 		return pluginParam
 	}
-
-	let t = cmds.filter(e => selectedTitle.includes(e.title))
-	if (t && t.length) {
-		await runCommands(context, t, exprHelper, pluginParam)
+	if (typeof selectedTitle == 'string') {
+		// string
+		let t = cmds.filter(e => selectedTitle == e.title)
+		if (t && t.length) {
+			await runCommands(context, t, exprHelper, pluginParam)
+		}
+	} else if (selectedTitle.length) {
+		//array 
+		let t = cmds.filter(e => selectedTitle.includes(e.title))
+		if (t && t.length) {
+			await runCommands(context, t, exprHelper, pluginParam)
+		}
+	} else {
+		error('invalid state in showSelectBox')
 	}
+
 	return pluginParam
 }
 
