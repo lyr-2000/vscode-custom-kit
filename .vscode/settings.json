@@ -58,7 +58,7 @@
             "title": "call self",
             "when": "${fileExtname} == '.go' ",
             "params": {},
-            "command": "codeCmd('custom-kit.helloWorld',{title:'tshell'})",
+            "command": "codeCmd('custom-kit.runCommand',{title:'tshell'})",
         },
         {
             "title": "error demo",
