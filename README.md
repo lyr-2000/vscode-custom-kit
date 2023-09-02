@@ -164,7 +164,7 @@ This interpolation expression can be used in the When expression and Params in t
 
 ## 内置命令对应关系
 
-| Object name| Type parameter| Analyze  |    function declare |
+| Object name| Type parameter| Analyze  |
 | :--:| :--: | :--:  |
 | window|  object |    vscode.window  |
 | payload|  object |  current event payload  |
@@ -173,7 +173,7 @@ This interpolation expression can be used in the When expression and Params in t
 | error| function| ERROR bomb box|
 | alert| function| INFO bomb box |
 | shell | function| Package of ChildProcess.exec |
-| shellx | function| Package of Childprocess.spawn, shellx(cmd: string,stdinText:string, otherParams:any) , Reference <https://nodejs.org/api/child_process.html|>
+| shellx | function| Package of Childprocess.spawn, shellx(cmd: string,stdinText:string, otherParams:any) , Reference <<https://nodejs.org/api/child_process.html>|>
 | tshell | function | Create VSCode Terminal and execute the shell command |
 | expr | function| Can analyze ${file} and other expressions into corresponding text|
 | input |function | open vscode input box |
@@ -184,7 +184,7 @@ This interpolation expression can be used in the When expression and Params in t
 | output | function | write msg to output panel  |
 |  paste | function | replace the selected text, If the parameter is empty, it is equivalent to running the paste command|
 | fetch  | function | Return to FETCH Promise directly, not packing  |
-| request  | function | For the packaging of node-fetch, return the text of the HTTP request   reference:<https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API/Using_Fetch|>
+| request  | function | For the packaging of node-fetch, return the text of the HTTP request   reference:<<https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API/Using_Fetch>|>
 
 ## code sample
 
@@ -256,5 +256,3 @@ This interpolation expression can be used in the When expression and Params in t
 }
 
 ```
-
-
