@@ -194,6 +194,24 @@ This interpolation expression can be used in the When expression and Params in t
     "custom-kit.terminal.title": "[cmd]",
     "custom-kit.defaultCommands": [
         {
+            "title": "cht.sh",
+            "params": {
+                "url": "https://cht.sh/",
+                "method": "GET",
+            },
+            "command": [
+                "let i = await input('',{placeHolder:'type your quesiton'})",
+                "if(!i) return;",
+                "let req = await request(params.url+i,params);",
+                "codeCmd('workbench.action.closeEditorsInOtherGroups')",
+                "codeCmd('workbench.action.newGroupRight')",
+                "codeCmd('workbench.action.files.newUntitledFile')",
+                "codeCmd('workbench.action.focusRightGroup')",
+                "copy(escapeColor(req));",
+                "paste()"
+            ],
+        },
+        {
             "title": "default command",
             "params": {
                 "url": "http://ifconfig.me/ip",

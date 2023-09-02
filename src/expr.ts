@@ -3,8 +3,8 @@ import variable from './exprs/variable';
 import replace from './exprs/replace';
 
 export type VariableScope = keyof typeof variableMap;
-export function resolveExpr(obj :ExprHelper,cmd: string,predefined: Record<string,string>={},quote=false) {
-    return cmd && replace(cmd,  str => {
+export function resolveExpr(obj: ExprHelper, cmd: string, predefined: Record<string, string> = {}, quote = false) {
+    return cmd && replace(cmd, str => {
         let [variable, args = ''] = str.split(':');
 
         // 去除空白
@@ -23,13 +23,13 @@ export function resolveExpr(obj :ExprHelper,cmd: string,predefined: Record<strin
             case 'env':
                 return args && obj.env(args);
             // case 'input':
-                // return await obj.input(args) || args;
+            // return await obj.input(args) || args;
             // case 'command':
-                // return args && await vscode.commands.executeCommand(args) || '';
+            // return args && await vscode.commands.executeCommand(args) || '';
             default:
                 return obj.variable(variable as VariableScope);
         }
-    },quote);
+    }, quote);
 }
 
 export const variableMap = {
@@ -61,8 +61,8 @@ export const variableMap = {
 
 export default class ExprHelper {
     private $variable = variable()
-     /* 获取环境变量 */
-     env(scope: string): string {
+    /* 获取环境变量 */
+    env(scope: string): string {
         return this.$variable.env()[scope.toUpperCase()] || '';
     }
 
@@ -92,8 +92,10 @@ export default class ExprHelper {
     }
 
     /* 获取输入 */
-    input(value: string,otherOpt:vscode.InputBoxOptions= {}): Thenable<string | undefined> {
-        otherOpt.placeHolder = value && `default: "${value}"`
+    input(value: string, otherOpt: vscode.InputBoxOptions = {}): Thenable<string | undefined> {
+        otherOpt.value = value
+        // if (!otherOpt.placeHolder) {
+        // }
         return vscode.window.showInputBox(otherOpt);
     }
 }
