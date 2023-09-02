@@ -92,7 +92,8 @@ export default class ExprHelper {
     }
 
     /* 获取输入 */
-    input(value: string): Thenable<string | undefined> {
-        return vscode.window.showInputBox({ placeHolder: value && `default: "${value}"` });
+    input(value: string,otherOpt:vscode.InputBoxOptions= {}): Thenable<string | undefined> {
+        otherOpt.placeHolder = value && `default: "${value}"`
+        return vscode.window.showInputBox(otherOpt);
     }
 }

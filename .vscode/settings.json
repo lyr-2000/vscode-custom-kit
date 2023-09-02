@@ -9,5 +9,87 @@
         "dist": true // set this to false to include "dist" folder in search results
     },
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-    "typescript.tsc.autoDetect": "off"
+    "typescript.tsc.autoDetect": "off",
+    "custom-kit.panelName":"[cmd-panel]",
+    "custom-kit.terminal.title": "[cmd]",
+    "custom-kit.commands": [
+        {
+            "title":"go.format",
+            "params": {
+                "selected": "${selectedText}"
+            },
+            "command": [
+                "let res = await shellx('gofmt',params.selected);",
+                "paste(res)",
+
+            ]
+        },
+        {
+
+            "title": "to upper case",
+            "command": [
+                "paste(selectedText().toUpperCase())",
+                "output('it is an demo')"
+            ]
+        },
+        {
+            "title": "requestit",
+            "params": {
+                "url": "https://cht.sh/go/net",
+                "method": "GET",
+            },
+            "command": [
+                "let req = await request(params.url,params);",
+                // "output(req);",
+                "codeCmd('workbench.action.closeEditorsInOtherGroups')",
+                "codeCmd('workbench.action.newGroupRight')",
+                "codeCmd('workbench.action.files.newUntitledFile')",
+                "codeCmd('workbench.action.focusRightGroup')",
+                "copy(escapeColor(req));",
+                "paste()"
+            ],
+        },
+        {
+            "title": "output panel result",
+            "params": {},
+            "command": "let ls = await shellx('ls',null,['-al','--color']);output(ls);",
+        },
+        {
+            "title": "call self",
+            "when": "${fileExtname} == '.go' ",
+            "params": {},
+            "command": "codeCmd('custom-kit.helloWorld',{title:'tshell'})",
+        },
+        {
+            "title": "error demo",
+            "params": {},
+            "command": "return await shellx('ls')",
+        },
+        {
+            "title": "cat stdin",
+            "params": {},
+            "command": "let s = selectedText();s = await shellx('cat',s);alert(s);alert(toString(params))",
+        },
+        {
+            "title": "shellx",
+            "command": "let s = selectedText();s = await shellx('ls',null,['-al']);alert(s);alert(toString(params))",
+        },
+        {
+            "title": "selectbox",
+            "command": "let v = await quickPick(['1','hello'],null,'bbx');alert(v)",
+        },
+        {
+            "title": "demo",
+            "command": "alert('aaa');error('nnn');alert(expr('${file}'))",
+        },
+        {
+            "title": "helloworld",
+            "command": "let s = await shell('ls');alert(s)",
+        },
+        {
+            "title": "tshell",
+            "command": "tshell('ls');tshell('echo helloworld')"
+        }
+    ],
+
 }

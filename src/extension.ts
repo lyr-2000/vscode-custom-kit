@@ -24,7 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "custom-kit" is now active!');
+	// console.log('Congratulations, your extension "custom-kit" is now active!');
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -69,6 +69,7 @@ interface Cmd {
 
 function getcfg() {
 	// 默认配置
+	// https://stackoverflow.com/questions/65192859/for-workspace-getconfiguration-how-do-i-get-a-setting-from-the-multi-root-works
 	return vscode.workspace.getConfiguration();
 }
 
@@ -108,15 +109,28 @@ async function waitPromise(fn) {
 	return await fn()
 
 }
+interface configs {
+	commands: Cmd[]
+	titles: string[]
+}
 
-async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
-	// 获取全局 settings.json 配置
-	let cfg = getcfg();
-	// 获取特定配置项的值
-	const value = cfg.get('custom-kit.commands') || [];
-	const exprHelper = new CommandUtil(context)
+function loadCmd(exprHelper: CommandUtil): configs {
+	let cfg1 = vscode.workspace.getConfiguration('custom-kit');
+	let cmd2: string[] = cfg1.get('commands') || []
+	// let root = vscode.env.appRoot
+	let defaultCmd: string[] = cfg1.get('defaultCommands') || []
+	// @ts-ignore
+	if (!defaultCmd || defaultCmd.length == 0) {
+		return loadCmd0(cmd2, exprHelper)
+	}
+	// vscode.env.
+	return loadCmd0(cmd2.concat(defaultCmd), exprHelper)
+}
+function loadCmd0(value: any[], exprHelper: CommandUtil): configs {
+	// const value = cfg.get('commands') || [];
+	const titles: string[] = []
 	const cmds: Cmd[] = []
-	const titles = []
+	const titleMap = new Map<string, number>()
 	// @ts-ignore
 	if (value.length > 0) {
 		const titleMap = new Map<string, number>()
@@ -149,13 +163,26 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 			}
 		}
 	}
+	return {
+		commands: cmds,
+		titles: titles,
+	}
+}
+
+async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
+	// 获取特定配置项的值
+	const exprHelper = new CommandUtil(context)
+	const res = loadCmd(exprHelper)
+	const cmds = res.commands
+	const titles = res.titles
+
 	if (param.title) {
-		// has command
-		const all = cmds.filter(e => e.title == param.title)
-		if (all && all.length) {
-			param.current = all[0]
+		// match command by title
+		const matchedCommand = cmds.filter(e => e.title == param.title)
+		if (matchedCommand && matchedCommand.length) {
+			param.current = matchedCommand[0]
 			const extCtx = makeCtx(context, exprHelper, param)
-			let alls = all[0].command
+			let alls = matchedCommand[0].command
 			for (let i = 0; i < alls.length; i++) {
 				try {
 					let fn = compileCode(alls[i])
@@ -176,7 +203,7 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 			const extCtx = makeCtx(context, exprHelper, param)
 			try {
 				let fn = compileCode(param.command)
-				param.result = await waitPromise(() => fn(extCtx))
+				param.result = await fn(extCtx)
 			} catch (e) {
 				error(e.toString())
 				console.error(e.stack)
@@ -200,7 +227,7 @@ async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
 			let cmd = t[0].command[i]
 			try {
 				let fn = compileCode(cmd)
-				param.result = await waitPromise(() => fn(extCtx))
+				param.result = await fn(extCtx)
 			} catch (e) {
 				error(e.toString())
 				console.error(e.stack)
@@ -334,6 +361,7 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		vscode.window.showErrorMessage('invalid helper')
 		return
 	}
+	// do explain expr
 	if (params && params.current && params.current.params) {
 		if (typeof params.current.params == 'object') {
 			let p0 = params.current.params
@@ -355,47 +383,121 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		params: params?.current?.params,
 		toString,
 		error,
-		escapeColor(...w) {
+
+		/**
+		 * Escapes the color of the text.
+		 *
+		 * @param {string} text - The text whose color needs to be escaped.
+		 * @return {string} The escaped color text.
+		 */
+		escapeColor(text: string): string {
 			// @ts-ignore
-			return helper.escapeColor(...w)
+			return helper.escapeColor(text)
 		},
+		/**
+		 * Displays an alert message.
+		 *
+		 * @param {...string} w - The message or messages to display.
+		 * @return {Thenable<string | undefined>} A promise that resolves to the user's response.
+		 */
 		alert: (...w) => {
 			// @ts-ignore
 			return vscode.window.showInformationMessage(w.join(''));
 		},
+		/**
+		 * Show a warning message in the vscode window.
+		 *
+		 * @param {...string} w - The warning message to be displayed.
+		 * @return {Thenable<string | undefined>} A thenable that resolves to the user's response.
+		 */
 		warn: (...w) => {
 			// @ts-ignore
 			return vscode.window.showWarningMessage(w.join(''));
 		},
-		shellx: (...w) => {
+		/**
+		 * Executes a shell command.
+		 *
+		 * @param {string} cmd - The shell command to execute.
+		 * @param {string} stdin - The input to pass to the command.
+		 * @param {...any} otherOpt - Additional options to pass to the command.
+		 * @return {*} - The result of executing the command.
+		 */
+		shellx: (cmd, stdin: string, ...otherOpt: any) => {
 			// @ts-ignore
-			return spawn(...w)
+			return spawn(cmd, stdin, ...otherOpt)
 		},
+		/**
+		 * Executes a shell command.
+		 *
+		 * @param {...any} w - The arguments to pass to the shell command.
+		 * @return {Promise<any>} A promise that resolves to the result of the shell command.
+		 */
 		shell: async (...w) => {
 			// @ts-ignore
 			return await executeShellCommand(...w)
 		},
 		tshell,
+		/**
+		 * A description of the entire function.
+		 *
+		 * @param {string} expr - description of parameter
+		 * @return {type} description of return value
+		 */
 		expr: (expr: string) => {
 			return resolveExpr(helper?.exprHelper, expr,)
 		},
-		input: helper?.exprHelper.input,
-		quickPick: (w0, w1 = null, w2 = null) => {
-			let id = w2 != null ? w2 : params.current?.title;
+		/**
+		 * A description of the entire function.
+		 *
+		 * @param {string} value - The value to be passed to the input method.
+		 * @param {vscode.InputBoxOptions} otherOpt - Optional input box options.
+		 * @return {Thenable<string | undefined>} A promise that resolves to a string or undefined.
+		 */
+		input: (value: string, otherOpt: vscode.InputBoxOptions = {}): Thenable<string | undefined> => {
+			return helper?.exprHelper.input(value, otherOpt)
+		},
+		/**
+		 * Generates a quick pick selection box.
+		 *
+		 * @param {string[]} options - the first parameter
+		 * @param {vsocde.QuickPickOptions} config - the second parameter (optional, default: null)
+		 * @param {string} it - the third parameter (it use for sort the options item)
+		 * @return {type} the return value of the function
+		 */
+		quickPick: (options: string[], config: vscode.QuickPickOptions = {}, it = null) => {
+			let id = it != null ? it : params.current?.title;
 			if (id.includes('#')) {
 				id = id.replace(/#/g, '')
 			}
-			return helper.showSelectBox(w0, w1, id)
+			return helper.showSelectBox(options, config, id)
 		},
+		/**
+		 * Executes a VS Code command with optional arguments.
+		 *
+		 * @param {string} c - The name of the command to execute.
+		 * @param {...any} w - Optional arguments to pass to the command.
+		 * @return {Promise<any>} A promise that resolves to the result of the command execution.
+		 */
 		codeCmd(c, ...w) {
 			return vscode.commands.executeCommand(c, ...w)
 		},
+		/**
+		 * Returns the selected text in the active text editor.
+		 *
+		 * @return {string} The selected text.
+		 */
 		selectedText() {
 			const editor = vscode.window.activeTextEditor;
 			const selection = editor.selection;
 			const selectedText = editor.document.getText(selection);
 			return selectedText
 		},
+		/**
+		 * Copies the given text to the clipboard.
+		 *
+		 * @param {string} text - The text to be copied.
+		 * @return {Promise<void>} A promise that resolves when the text is successfully copied to the clipboard.
+		 */
 		copy(text: string) {
 			return vscode.env.clipboard.writeText(text);
 		},
@@ -406,10 +508,32 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		unquote(str) {
 			return str.replace(/^"(.*)"$/, '$1');
 		},
-		output(msg: string, nextline: boolean, show = true, escape = true) {
+		/**
+		 * Clears the output.
+		 *
+		 * @return {void} 
+		 */
+		outputClear() {
+			return helper.outputClear()
+		},
+		/**
+		 * Output a message.
+		 *
+		 * @param {string} msg - The message to output.
+		 * @param {boolean} nextline - Whether to output a new line after the message. Default is true.
+		 * @param {boolean} show - Whether to display the message. Default is true.
+		 * @param {boolean} escape - Whether to escape special characters in the message. Default is true.
+		 * @return {any} The result of the helper.output function.
+		 */
+		output(msg: string, nextline = true, show = true, escape = true) {
 			return helper.output(msg, nextline, show, escape)
 		},
-		paste(...all) {
+		/**
+		 * Paste the given content into the active text editor.
+		 *
+		 * @param {...string} all - The content to be pasted. Accepts multiple arguments.
+		 */
+		paste(...all: string[]) {
 			const editor = vscode.window.activeTextEditor;
 			const selection = editor.selection;
 			if (all == null || all.length == 0) {
@@ -420,10 +544,24 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 				editBuilder.replace(selection, all.join('\n'));
 			});
 		},
+		/**
+		 * Executes an asynchronous request to the specified URL.
+		 *
+		 * @param {string} url - The URL to send the request to.
+		 * @param {...any[]} w - Optional additional parameters to pass to the request.
+		 * @return {Promise<string>} A promise that resolves with the response body as a string.
+		 */
 		async request(url: string, ...w: any[]) {
 			let res = await request(url, ...w)
 			return await res.text()
 		},
+		/**
+		 * Fetches data from the provided URL using the specified HTTP method and additional options.
+		 *
+		 * @param {string} url - The URL to fetch data from.
+		 * @param {...any[]} w - Additional options for the fetch request.
+		 * @return {Promise<any>} A promise that resolves to the fetched data.
+		 */
 		fetch(url, ...w: any[]) {
 			return request(url, ...w)
 		}
@@ -449,7 +587,17 @@ function validSafe(src: string) {
 
 }
 
-function compileCode(src, noAsync = false, valid = true) {
+
+/**
+ * Compiles the given source code and returns a function that can be executed in a sandbox environment.
+ *
+ * @param {string} src - The source code to be compiled.
+ * @param {boolean} noAsync - Optional parameter to indicate whether the compiled code should be wrapped in an async function. Defaults to false.
+ * @param {boolean} valid - Optional parameter to indicate whether the source code is valid. Defaults to true.
+ * @throws {Error} - Throws an error if the source code is illegal.
+ * @returns {Function} - The compiled function that can be executed in a sandbox environment.
+ */
+function compileCode(src: string, noAsync = false, valid = true) {
 	if (valid) {
 		if (!validSafe(src)) {
 			throw new Error(`illegal code ${src}`);
@@ -458,7 +606,6 @@ function compileCode(src, noAsync = false, valid = true) {
 	let fnprefix = noAsync ? '' : `async `
 	let wrapper = `return (${fnprefix} () => { ${src} }) ()`
 	src = `with (sandbox) {  ${wrapper}\n} `
-	// vscode.window.showInformationMessage(src)
 	const fn = new Function('sandbox', src)
 	return function (sandbox) {
 		const theProxy = new Proxy(sandbox, {

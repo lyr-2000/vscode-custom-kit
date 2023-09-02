@@ -164,7 +164,7 @@ This interpolation expression can be used in the When expression and Params in t
 
 ## 内置命令对应关系
 
-| Object name| Type parameter| Analyze  |
+| Object name| Type parameter| Analyze  |    function declare |
 | :--:| :--: | :--:  |
 | window|  object |    vscode.window  |
 | payload|  object |  current event payload  |
@@ -173,7 +173,7 @@ This interpolation expression can be used in the When expression and Params in t
 | error| function| ERROR bomb box|
 | alert| function| INFO bomb box |
 | shell | function| Package of ChildProcess.exec |
-| shellx | function| Package of Childprocess.spawn, shellx(cmd: string,stdinText:string, otherParams:any) , Reference https://nodejs.org/api/child_process.html|
+| shellx | function| Package of Childprocess.spawn, shellx(cmd: string,stdinText:string, otherParams:any) , Reference <https://nodejs.org/api/child_process.html|>
 | tshell | function | Create VSCode Terminal and execute the shell command |
 | expr | function| Can analyze ${file} and other expressions into corresponding text|
 | input |function | open vscode input box |
@@ -184,4 +184,59 @@ This interpolation expression can be used in the When expression and Params in t
 | output | function | write msg to output panel  |
 |  paste | function | replace the selected text, If the parameter is empty, it is equivalent to running the paste command|
 | fetch  | function | Return to FETCH Promise directly, not packing  |
-| request  | function | For the packaging of node-fetch, return the text of the HTTP request   reference:https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API/Using_Fetch|
+| request  | function | For the packaging of node-fetch, return the text of the HTTP request   reference:<https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API/Using_Fetch|>
+
+## code sample
+
+```json
+{
+    "custom-kit.panelName": "[cmd-panel]",
+    "custom-kit.terminal.title": "[cmd]",
+    "custom-kit.defaultCommands": [
+        {
+            "title": "default command",
+            "params": {
+                "url": "http://ifconfig.me/ip",
+                "method": "GET"
+            },
+            "command": [
+                "let req = await request(params.url,params);",
+                "outputClear()",
+                "output(req)"
+            ]
+        },
+    ],
+    "custom-kit.commands": [
+        {
+            "title": "go.format",
+            "params": {
+                "selected": "${selectedText}"
+            },
+            "command": [
+                "let res = await shellx('gofmt',params.selected);",
+                "paste(res)",
+            ]
+        },
+        {
+            "title": "cht.sh",
+            "params": {
+                "url": "https://cht.sh/go/net",
+                "method": "GET",
+            },
+            "command": [
+                "let req = await request(params.url,params);",
+                // "output(req);",
+                "codeCmd('workbench.action.closeEditorsInOtherGroups')",
+                "codeCmd('workbench.action.newGroupRight')",
+                "codeCmd('workbench.action.files.newUntitledFile')",
+                "codeCmd('workbench.action.focusRightGroup')",
+                "copy(escapeColor(req));",
+                "paste()"
+            ],
+        }
+
+}
+
+```
+
+
