@@ -14,9 +14,13 @@ import { PanelName } from './const.ts';
 interface PluginParam {
 	title: string
 	command: string
+	params: any
+	when: string
+
 	err: any
 	result: any
 	current: Cmd | Object // current command instance
+	isCustom: boolean
 }
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -65,6 +69,7 @@ interface Cmd {
 	title: string //command title
 	type: string // js,python,bash ,default is js
 	params: any
+	_cached: boolean
 }
 
 function getcfg() {
@@ -111,7 +116,6 @@ async function waitPromise(fn) {
 }
 interface configs {
 	commands: Cmd[]
-	titles: string[]
 }
 
 function loadCmd(exprHelper: CommandUtil): configs {
@@ -127,29 +131,15 @@ function loadCmd(exprHelper: CommandUtil): configs {
 	return loadCmd0(cmd2.concat(defaultCmd), exprHelper)
 }
 function loadCmd0(value: any[], exprHelper: CommandUtil): configs {
-	// const value = cfg.get('commands') || [];
-	const titles: string[] = []
 	const cmds: Cmd[] = []
-	const titleMap = new Map<string, number>()
 	// @ts-ignore
 	if (value.length > 0) {
-		const titleMap = new Map<string, number>()
 		// @ts-ignore
 		for (let i in value) {
 			// @ts-ignore
 			if (value[i] && value[i].title && value[i].command) {
 				// has repeated title
 				let title = value[i].title
-				if (titleMap.has(title)) {
-					// continue
-					value[i].title = value[i].title + ` (${titleMap.get(value[i].title)})`
-				}
-				// has condition 
-				if (value[i].when != null) {
-					if (typeof value[i].when != 'string' || !evalBool(exprHelper, value[i].when)) {
-						continue
-					}
-				}
 				let cmdx = value[i].command || value[i].commands
 				//@ts-ignore
 				cmds.push({
@@ -158,88 +148,104 @@ function loadCmd0(value: any[], exprHelper: CommandUtil): configs {
 					title: value[i].title,
 					params: value[i].params,
 				})
-				titleMap.set(title, Number(titleMap.get(title) || 0) + 1)
-				titles.push(value[i].title)
 			}
 		}
 	}
 	return {
 		commands: cmds,
-		titles: titles,
 	}
 }
+function filterCommands(inputCmd: Cmd[], exprHelper: CommandUtil): Cmd[] {
+	if (!inputCmd || inputCmd.length == 0) {
+		return []
+	}
+	let res: Cmd[] = []
+	for (let i = 0; i < inputCmd.length; i++) {
+		// has condition 
+		if (!inputCmd[i]._cached && inputCmd[i].when != null) {
+			if (typeof inputCmd[i].when != 'string' || !evalBool(exprHelper, inputCmd[i].when)) {
+				continue
+			}
+			inputCmd[i]._cached = true
+		}
+		res.push(inputCmd[i])
+	}
+	return res
 
-async function extEntry(context: vscode.ExtensionContext, param: PluginParam) {
+}
+async function runCommands(context: vscode.ExtensionContext, inputCmd: Cmd[], exprHelper: CommandUtil, param: PluginParam): Promise<Cmd[]> {
+	// filter command then  run
+	const res = filterCommands(inputCmd, exprHelper)
+	for (let i = 0; i < res.length; i++) {
+		let current = res[i]
+		param.current = res[i]
+		const extCtx = makeCtx(context, exprHelper, param)
+		// command array to run
+		let alls = [].concat(current.command)
+		for (let i = 0; i < alls.length; i++) {
+			try {
+				let fn = compileCode(alls[i])
+				param.result = await fn(extCtx)
+			} catch (e) {
+				error(e.toString())
+				console.error(e.stack)
+				param.err = e
+			}
+		}
+	}
+	return res
+
+}
+
+async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginParam) {
 	// 获取特定配置项的值
 	const exprHelper = new CommandUtil(context)
 	const res = loadCmd(exprHelper)
 	const cmds = res.commands
-	const titles = res.titles
 
-	if (param.title) {
+	// custom command content
+	if (pluginParam.title) {
 		// match command by title
-		const matchedCommand = cmds.filter(e => e.title == param.title)
-		if (matchedCommand && matchedCommand.length) {
-			param.current = matchedCommand[0]
-			const extCtx = makeCtx(context, exprHelper, param)
-			let alls = matchedCommand[0].command
-			for (let i = 0; i < alls.length; i++) {
-				try {
-					let fn = compileCode(alls[i])
-					param.result = await waitPromise(() => fn(extCtx))
-				} catch (e) {
-					error(e.toString())
-					console.error(e.stack)
-					param.err = e
-				}
+		const matchedCommand = cmds.filter(e => e.title == pluginParam.title)
+		const resToRun = await runCommands(context, matchedCommand, exprHelper, pluginParam)
+		if (resToRun ==null || resToRun.length == 0) {
+			// @ts-ignore
+			if (pluginParam.command && (typeof pluginParam.command == 'string' || pluginParam.command.length > 0)) {
+				// your custom code
+				pluginParam.isCustom = true
+				let newCmd: Cmd = {
+					when: pluginParam.when,
+					command: [[].concat(pluginParam.command).join('\n')],
+					title: pluginParam.title,
+					params: pluginParam.params,
+				} as Cmd
+				let done = await runCommands(context, [newCmd], exprHelper, pluginParam)
+				return pluginParam
 			}
-			return param
 		}
-		if (param.command && typeof param.command == 'string') {
-			// your custom code
-			param.current = {
-				'type': 'custom'
-			}
-			const extCtx = makeCtx(context, exprHelper, param)
-			try {
-				let fn = compileCode(param.command)
-				param.result = await fn(extCtx)
-			} catch (e) {
-				error(e.toString())
-				console.error(e.stack)
-				param.err = e
-			}
-
-			return param
-		}
+		return pluginParam
 	}
 	// select an option command to run
+	const filtered: Cmd[] = filterCommands(cmds, exprHelper)
+	const namemap = new Set<string>()
+	const titles = []
+	filtered.forEach(e => {
+		if (!namemap.has(e.title)) {
+			namemap.add(e.title)
+			titles.push(e.title)
+		}
+	})
+
 	let selectedTitle = await exprHelper.showSelectBox(titles, null, '#mainEntry')
 	if (!selectedTitle || selectedTitle.length == 0) {
-		return param
+		return pluginParam
 	}
 
 	let t = cmds.filter(e => selectedTitle.includes(e.title))
 	if (t && t.length) {
-		param.current = t[0]
-		const extCtx = makeCtx(context, exprHelper, param)
-		for (let i = 0; i < t[0].command.length; i++) {
-			let cmd = t[0].command[i]
-			try {
-				let fn = compileCode(cmd)
-				param.result = await fn(extCtx)
-			} catch (e) {
-				error(e.toString())
-				console.error(e.stack)
-				param.err = e
-			}
-		}
-
+		await runCommands(context, t, exprHelper, pluginParam)
 	}
-	return param
-
-
-
+	return pluginParam
 }
 
 const GlobalObject = {
@@ -600,7 +606,7 @@ function validSafe(src: string) {
 function compileCode(src: string, noAsync = false, valid = true) {
 	if (valid) {
 		if (!validSafe(src)) {
-			throw new Error(`illegal code ${src}`);
+			throw new Error(`illegal code ${src}, Can't recognize special characters`);
 		}
 	}
 	let fnprefix = noAsync ? '' : `async `

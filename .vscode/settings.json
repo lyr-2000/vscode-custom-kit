@@ -89,7 +89,13 @@
         {
             "title": "tshell",
             "command": "tshell('ls');tshell('echo helloworld')"
-        }
+        },
+        {
+            "title": "call self commands",
+            "command": [
+                "codeCmd('custom-kit.runCommand', { title: \"nop\", command: \"alert('nop')\" })",
+            ]
+        },
     ],
 
 }
