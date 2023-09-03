@@ -221,7 +221,7 @@ async function runPluginCustomParam(context: vscode.ExtensionContext, exprHelper
 	}
 }
 
-async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginParam) {
+async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginParam): Promise<Cmd[] | PluginParam> {
 
 	// 获取特定配置项的值
 	const exprHelper = new CommandUtil(context)
@@ -257,15 +257,15 @@ async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginPar
 	}
 	if (typeof selectedTitle == 'string') {
 		// string
-		let t = cmds.filter(e => selectedTitle == e.title)
+		let t = filtered.filter(e => selectedTitle == e.title)
 		if (t && t.length) {
-			await runCommands(context, t, exprHelper, pluginParam)
+			return await runCommands(context, t, exprHelper, pluginParam)
 		}
 	} else if (selectedTitle.length) {
 		//array 
-		let t = cmds.filter(e => selectedTitle.includes(e.title))
+		let t = filtered.filter(e => selectedTitle.includes(e.title))
 		if (t && t.length) {
-			await runCommands(context, t, exprHelper, pluginParam)
+			return await runCommands(context, t, exprHelper, pluginParam)
 		}
 	} else {
 		error('invalid state in showSelectBox')
