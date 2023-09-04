@@ -70,6 +70,7 @@ interface Cmd {
 	title: string //command title
 	type: string // js,python,bash ,default is js
 	params: any
+	hidden?: boolean
 	_cached: boolean
 }
 
@@ -148,6 +149,7 @@ function loadCmd0(value: any[], exprHelper: CommandUtil): configs {
 					command: [[].concat(cmdx).join('\n')],
 					title: value[i].title,
 					params: value[i].params,
+					hidden: value[i].hidden,
 				})
 			}
 		}
@@ -246,6 +248,9 @@ async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginPar
 	const titles = []
 	filtered.forEach(e => {
 		if (!namemap.has(e.title)) {
+			if (e && e.hidden && e.hidden === true) {
+				return
+			}
 			namemap.add(e.title)
 			titles.push(e.title)
 		}

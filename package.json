@@ -48,7 +48,8 @@
               "command": [
                 "let req = await request(params.url,params);",
                 "output(req)"
-              ]
+              ],
+              "hidden": false
             }
           ],
           "description": "Set the custom command to run.[it use for global comamnds config]",
@@ -66,7 +67,8 @@
               "command": [
                 "let req = await request(params.url,params);",
                 "output(req)"
-              ]
+              ],
+              "hidden": false
             }
           ],
           "description": "Set the custom command to run.",

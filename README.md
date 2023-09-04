@@ -254,6 +254,7 @@ This interpolation expression can be used in the When expression and Params in t
         },
         {
             "title":"flipEditorGroup",
+            "hidden":false, //hidden command, it use for keybinding
             "command": [
                 "codeCmd('workbench.action.navigateRight')",
                 "codeCmd('workbench.action.moveActiveEditorGroupLeft')"
