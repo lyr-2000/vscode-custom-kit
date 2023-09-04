@@ -5,11 +5,24 @@
   "version": "0.0.593",
   "icon": "images/cobalt2.png",
   "publisher": "lyr-2000",
+  "bugs": {
+    "url": "https://github.com/lyr-2000/vscodeScript/issues",
+    "email": "1957476540goldenwind@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lyr-2000/vscodeScript"
+  },
+  "keywords": [
+    "vimscript",
+    "keymap"
+  ],
   "engines": {
     "vscode": "^1.81.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Keymaps"
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
@@ -75,14 +88,6 @@
           "scope": "resource"
         }
       }
-    },
-    "bugs": {
-      "url": "https://github.com/lyr-2000/vscodeScript/issues",
-      "email": "1957476540goldenwind@gmail.com"
-    },
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/lyr-2000/vscodeScript"
     }
   },
   "scripts": {
