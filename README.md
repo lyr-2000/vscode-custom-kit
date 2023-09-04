@@ -251,6 +251,13 @@ This interpolation expression can be used in the When expression and Params in t
                 "copy(escapeColor(req));",
                 "paste()"
             ],
+        },
+        {
+            "title":"flipEditorGroup",
+            "command": [
+                "codeCmd('workbench.action.navigateRight')",
+                "codeCmd('workbench.action.moveActiveEditorGroupLeft')"
+            ]
         }
 
 }

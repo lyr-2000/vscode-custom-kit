@@ -1,8 +1,8 @@
 {
   "name": "custom-kit",
-  "displayName": "custom-kit",
+  "displayName": "vscodeScript",
   "description": "vscode custom shell and script command runner",
-  "version": "0.0.59",
+  "version": "0.0.593",
   "icon": "images/cobalt2.png",
   "publisher": "lyr-2000",
   "engines": {
@@ -19,68 +19,68 @@
         "command": "custom-kit.runCommand",
         "title": "run Command [kit]"
       }
-    ]
-  },
-  "bugs": {
-    "url": "https://github.com/lyr-2000/vscode-custom-kit/issues",
-    "email": "1957476540goldenwind@gmail.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/lyr-2000/vscode-custom-kit"
-  },
-  "configuration": {
-    "type": "object",
-    "title": "Run Command Configuration",
-    "properties": {
-      "custom-kit.panelName": {
-        "type": "string",
-        "default": "[cmd-panel]",
-        "description": "output panel name",
-        "scope": "resource"
-      },
-      "custom-kit.terminal.title": {
-        "type": "string",
-        "default": "[cmd-panel]",
-        "description": "output panel name",
-        "scope": "resource"
-      },
-      "custom-kit.defaultCommands": {
-        "type": "array",
-        "default": [
-          {
-            "title": "demo[default]",
-            "params": {
-              "url": "http://ifconfig.me/ip",
-              "method": "GET"
-            },
-            "command": [
-              "let req = await request(params.url,params);",
-              "output(req)"
-            ]
-          }
-        ],
-        "description": "Set the custom command to run.[it use for global comamnds config]",
-        "scope": "resource"
-      },
-      "custom-kit.commands": {
-        "type": "array",
-        "default": [
-          {
-            "title": "demo[default]",
-            "params": {
-              "url": "http://ifconfig.me/ip",
-              "method": "GET"
-            },
-            "command": [
-              "let req = await request(params.url,params);",
-              "output(req)"
-            ]
-          }
-        ],
-        "description": "Set the custom command to run.",
-        "scope": "resource"
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Run Command Configuration",
+      "properties": {
+        "custom-kit.panelName": {
+          "type": "string",
+          "default": "[cmd-panel]",
+          "description": "output panel name",
+          "scope": "resource"
+        },
+        "custom-kit.terminal.title": {
+          "type": "string",
+          "default": "[cmd-panel]",
+          "description": "output panel name",
+          "scope": "resource"
+        },
+        "custom-kit.defaultCommands": {
+          "type": "array",
+          "default": [
+            {
+              "title": "demo[default]",
+              "params": {
+                "url": "http://ifconfig.me/ip",
+                "method": "GET"
+              },
+              "command": [
+                "let req = await request(params.url,params);",
+                "output(req)"
+              ]
+            }
+          ],
+          "description": "Set the custom command to run.[it use for global comamnds config]",
+          "scope": "resource"
+        },
+        "custom-kit.commands": {
+          "type": "array",
+          "default": [
+            {
+              "title": "demo[default]",
+              "params": {
+                "url": "http://ifconfig.me/ip",
+                "method": "GET"
+              },
+              "command": [
+                "let req = await request(params.url,params);",
+                "output(req)"
+              ]
+            }
+          ],
+          "description": "Set the custom command to run.",
+          "scope": "resource"
+        }
       }
+    },
+    "bugs": {
+      "url": "https://github.com/lyr-2000/vscodeScript/issues",
+      "email": "1957476540goldenwind@gmail.com"
+    },
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/lyr-2000/vscodeScript"
     }
   },
   "scripts": {
