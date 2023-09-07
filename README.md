@@ -301,7 +301,7 @@ Configure in settings.json
 
 ```json
 {
-     "custom-kit.shell.path": "F:/software/region0/mysys2/usr/bin/bash.exe",
+     "custom-kit.shell.path": ["F:/software/region0/mysys2/usr/bin/bash.exe"],
     "custom-kit.shell.env": {
         // "PATH":"F:/software/region0/mysys2/usr/bin/"
     },

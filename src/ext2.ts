@@ -12,6 +12,25 @@ function checkParam(...w) {
 }
 
 var onlyPath = require('path')
+
+const fs = require('fs')
+function isPathExists(path) {
+  try {
+    fs.accessSync(path);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+function getRunnableShell(sh :string[]): string|boolean {
+  for (let i = 0; i < sh.length; i++) {
+    if (isPathExists(sh[i])) {
+      return sh[i]
+    }
+  }
+  return true
+}
+
 // @ts-ignore
 export async function shellx(cmd, stdin = null, args = [], other = {
   cwd: vscode.workspace.rootPath,
@@ -27,7 +46,7 @@ export async function shellx(cmd, stdin = null, args = [], other = {
   }
   //@ts-ignore
   const configuration = vscode.workspace.getConfiguration();
-  const shell = configuration.get('custom-kit.shell.path') || true
+  let shell = configuration.get('custom-kit.shell.path') || true
   const envex = configuration.get('custom-kit.shell.env') || {}
   // @ts-ignore
   for (let k in envex) {
@@ -37,17 +56,22 @@ export async function shellx(cmd, stdin = null, args = [], other = {
     }
   }
   // @ts-ignore
+  if (shell && Array.isArray(shell)) {
+    // @ts-ignore
+    shell = getRunnableShell(shell)
+  }
+  // @ts-ignore
   if (shell && typeof shell == 'string') {
     // @ts-ignore
     other.shell = shell
     let dir = onlyPath.dirname(shell)
-    other.env.PATH = dir + ":" + other.env.PATH
+    other.env.PATH = dir + onlyPath.delimiter + other.env.PATH
   }
 
   //@ts-ignore
   if (envex.PATH) {
     // @ts-ignore
-    other.env.PATH = envex.PATH + ":" + process.env.PATH;
+    other.env.PATH = envex.PATH + onlyPath.delimiter + process.env.PATH;
   }
 
   return spawn(cmd, stdin, args, other)
