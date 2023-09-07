@@ -13,3 +13,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added 
 - support run shell command with arguments
+
+
+## [V0.1.3]
+
+### Added 
+- support custom path and env for run shell command
+
+

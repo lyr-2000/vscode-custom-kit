@@ -11,37 +11,64 @@ function checkParam(...w) {
   return true
 }
 
-export async function shellx(cmd, stdin = null, args = [], opt = {}) {
+var onlyPath = require('path')
+// @ts-ignore
+export async function shellx(cmd, stdin = null, args = [], other = {
+  cwd: vscode.workspace.rootPath,
+  encoding: 'utf8',
+  shell: true,
+  env: process.env,
+  // stdio: 'inherit',
+}) {
   checkParam(cmd, stdin, args)
-  if (args == null || args.length == 0) {
-    let idx = cmd.indexOf(' ')
-    if (idx > 0) {
-      // with command line arguments
-      if (opt == null) {
-        opt = {}
-      }
-      //@ts-ignore
-      opt.shell = true
-      return spawn(cmd, stdin, [], opt)
-    }
-    return spawn(cmd, stdin, args,opt)
-
-  } else {
-    return spawn(cmd, stdin, args,opt)
+  if (other == null) {
+    // @ts-ignore
+    other = {}
   }
+  //@ts-ignore
+  const configuration = vscode.workspace.getConfiguration();
+  const shell = configuration.get('custom-kit.shell.path') || true
+  const envex = configuration.get('custom-kit.shell.env') || {}
+  // @ts-ignore
+  for (let k in envex) {
+    if (k != 'PATH') {
+      // @ts-ignore
+      other.env[k] = envex[k];
+    }
+  }
+  // @ts-ignore
+  if (shell && typeof shell == 'string') {
+    // @ts-ignore
+    other.shell = shell
+    let dir = onlyPath.dirname(shell)
+    other.env.PATH = dir + ":" + other.env.PATH
+  }
+
+  //@ts-ignore
+  if (envex.PATH) {
+    // @ts-ignore
+    other.env.PATH = envex.PATH + ":" + process.env.PATH;
+  }
+
+  return spawn(cmd, stdin, args, other)
 
 }
 
-export async function spawn(cmd, stdin = null, args = null, ...other: any) {
+export async function spawn(cmd, stdin = null, args = null, other: any = {}) {
   checkParam(cmd, stdin, args)
+
   return new Promise(function (resolve, reject) {
-    const ls = childProcess.spawn(cmd, args, ...other);
+    const ls = childProcess.spawn(cmd, args, other);
     if (stdin && typeof stdin == 'string') {
-      ls.stdin.write(stdin);
-      ls.stdin.end()
+      if (ls.stdin && ls.stdin.writable) {
+        ls.stdin.write(stdin);
+        ls.stdin.end()
+      }
     }
     let stdoutData = "";
     let stderrData = "";
+    ls.stderr.setEncoding('utf8')
+    ls.stdout.setEncoding('utf8')
     ls.stdout.on('data', (data) => {
       // Edit thomas.g: stdoutData = Buffer.concat([stdoutData, chunk]);
       stdoutData += data;

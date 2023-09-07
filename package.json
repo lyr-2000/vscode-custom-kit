@@ -2,7 +2,7 @@
   "name": "custom-kit",
   "displayName": "vscodeScript",
   "description": "vscode custom shell and script command runner",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "icon": "images/cobalt2.png",
   "publisher": "lyr-2000",
   "bugs": {
@@ -47,6 +47,20 @@
           "type": "string",
           "default": "[cmd-panel]",
           "description": "output panel name",
+          "scope": "resource"
+        },
+        "custom-kit.shell.env": {
+          "type": "string",
+          "default": {
+            "Var1": ""
+          },
+          "description": "shell env",
+          "scope": "resource"
+        },
+        "custom-kit.shell.path": {
+          "type": "string",
+          "default": "",
+          "description": "shell path",
           "scope": "resource"
         },
         "custom-kit.defaultCommands": {
@@ -118,6 +132,7 @@
     "webpack-cli": "^5.1.1"
   },
   "dependencies": {
+    "iconv-lite": "^0.6.3",
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2"
   },

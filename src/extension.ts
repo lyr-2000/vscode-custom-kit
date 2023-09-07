@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
 		try {
 			if (typeof opts == 'string') {
 				// @ts-ignore
-				return extEntry(context, { title: opts })
+				return await extEntry(context, { title: opts })
 			}
 			// @ts-ignore
 			return await extEntry(context, opts || {})
@@ -184,6 +184,33 @@ function filterCommands(inputCmd: Cmd[], exprHelper: CommandUtil): Cmd[] {
 	return res
 
 }
+
+// const iconv = require('iconv-lite');
+var iconv = require('iconv-lite');
+
+// 判断字符串是否为UTF-8编码
+function isUTF8(str) {
+  return Buffer.from(str, 'utf8').toString('utf8') === str;
+}
+
+function isGarbledUTF8(str) {
+	try {
+	  const buffer = Buffer.from(str, 'utf8');
+	  const decodedString = buffer.toString('utf8');
+	  return decodedString !== str;
+	} catch (error) {
+	  return true;
+	}
+}
+
+// 将GBK编码转换为UTF-8编码
+function convertToGBK(str) {
+  const buffer = Buffer.from(str);
+  const utf8String = iconv.decode(buffer, 'gbk');
+  
+  return iconv.encode(utf8String, 'utf8');
+}
+
 async function runCommands(context: vscode.ExtensionContext, inputCmd: Cmd[], exprHelper: CommandUtil, param: PluginParam): Promise<Cmd[]> {
 	// filter command then  run
 	const res = filterCommands(inputCmd, exprHelper)
@@ -198,7 +225,11 @@ async function runCommands(context: vscode.ExtensionContext, inputCmd: Cmd[], ex
 				let fn = compileCode(alls[i])
 				param.result = await fn(extCtx)
 			} catch (e) {
-				error(e.toString())
+				let emsg = e.toString()
+				if(!isGarbledUTF8(emsg)) {
+					emsg = convertToGBK(emsg)
+				}
+				error(emsg)
 				console.error(e.stack)
 				param.err = e
 			}
@@ -422,6 +453,7 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 	}
 	return {
 		ctx: ctx,
+		process:process,
 		window: vscode.window,
 		payload: params,
 		current: params?.current,
