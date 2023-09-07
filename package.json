@@ -2,7 +2,7 @@
   "name": "custom-kit",
   "displayName": "vscodeScript",
   "description": "vscode custom shell and script command runner",
-  "version": "0.0.593",
+  "version": "0.1.1",
   "icon": "images/cobalt2.png",
   "publisher": "lyr-2000",
   "bugs": {
@@ -118,6 +118,7 @@
     "webpack-cli": "^5.1.1"
   },
   "dependencies": {
+    "minimist": "^1.2.8",
     "node-fetch": "^3.3.2"
   },
   "__metadata": {

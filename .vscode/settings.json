@@ -96,6 +96,20 @@
                 "codeCmd('custom-kit.runCommand', { title: \"nop\", command: \"alert('nop')\" })",
             ]
         },
+        {
+            // call awk script 
+            "title":"awk input",
+            "params": {
+                "awk": "awk 'BEGIN{FS=\" \";OFS=\" \";}{ print $1,$2,$3 } '",
+            },
+            "command": [
+                "let i = await input(params.awk,{placeHolder:'awk script'})",
+                "if(!i) return;",
+                "let str = selectedText()",
+                "let o = await shellx(`${i}`,str,[])",
+                "paste(o)"
+            ]
+        },
     ],
 
 }

@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 
 
 // @ts-ignore
-import { executeShellCommand, tshell, spawn, request } from './ext2.ts'
+import { executeShellCommand, tshell, spawn,shellx, request } from './ext2.ts'
 
 // @ts-ignore
 import ExprHelper, { resolveExpr } from './expr.ts';
@@ -22,6 +22,10 @@ interface PluginParam {
 	result?: any
 	current?: Cmd | Object // current command instance
 	isCustom?: boolean
+
+	// public toString() {
+	// 	return this.title || this.command ||''
+	// }
 }
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -35,12 +39,16 @@ export function activate(context: vscode.ExtensionContext) {
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const cmd = 'custom-kit.runCommand'
-	let disposable = vscode.commands.registerCommand(cmd, async (opts: PluginParam) => {
+	let disposable = vscode.commands.registerCommand(cmd, async (opts: PluginParam ) => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		try {
+			if (typeof opts == 'string') {
+				// @ts-ignore
+				return extEntry(context, { title: opts })
+			}
 			// @ts-ignore
-			await extEntry(context, opts || {})
+			return await extEntry(context, opts || {})
 		} catch (e) {
 			error(e)
 			console.error(e.stack)
@@ -461,7 +469,7 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		 */
 		shellx: (cmd, stdin: string, ...otherOpt: any) => {
 			// @ts-ignore
-			return spawn(cmd, stdin, ...otherOpt)
+			return shellx(cmd, stdin, ...otherOpt)
 		},
 		/**
 		 * Executes a shell command.

@@ -259,7 +259,35 @@ This interpolation expression can be used in the When expression and Params in t
                 "codeCmd('workbench.action.navigateRight')",
                 "codeCmd('workbench.action.moveActiveEditorGroupLeft')"
             ]
-        }
+        },
+        {
+            // it 's an sample to call awk script using command 
+            "title":"awk input",
+            "params": {
+                // awk command with script
+                "awk": "awk 'BEGIN{FS=\" \";OFS=\" \";}{ print $1,$2,$3 } '",
+            },
+            "command": [
+                "let i = await input(params.awk,{placeHolder:'awk script'})",
+                "if(!i) return;",
+                "let str = selectedText()",
+                "let o = await shellx(`${i}`,str,[])",
+                "paste(o)"
+            ]
+        },
+        {
+            "title":"code with shell cut",
+            "params": {
+                "cut":"cut -d' ' -f1"
+            },
+            "command": [
+                "let i = await input(params.cut,{placeHolder:'shell command script'})",
+                "if(!i) return;",
+                "let str = selectedText()",
+                "let o = await shellx(i,str)",
+                "paste(o)"
+            ]
+        },
 
 }
 

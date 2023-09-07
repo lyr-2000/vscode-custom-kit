@@ -11,12 +11,31 @@ function checkParam(...w) {
   return true
 }
 
+export async function shellx(cmd, stdin = null, args = [], opt = {}) {
+  checkParam(cmd, stdin, args)
+  if (args == null || args.length == 0) {
+    let idx = cmd.indexOf(' ')
+    if (idx > 0) {
+      // with command line arguments
+      if (opt == null) {
+        opt = {}
+      }
+      //@ts-ignore
+      opt.shell = true
+      return spawn(cmd, stdin, [], opt)
+    }
+    return spawn(cmd, stdin, args,opt)
 
+  } else {
+    return spawn(cmd, stdin, args,opt)
+  }
 
-export async function spawn(cmd, stdin = null, args = null) {
+}
+
+export async function spawn(cmd, stdin = null, args = null, ...other: any) {
   checkParam(cmd, stdin, args)
   return new Promise(function (resolve, reject) {
-    const ls = childProcess.spawn(cmd, args);
+    const ls = childProcess.spawn(cmd, args, ...other);
     if (stdin && typeof stdin == 'string') {
       ls.stdin.write(stdin);
       ls.stdin.end()
