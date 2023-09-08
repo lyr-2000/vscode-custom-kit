@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 
 
 // @ts-ignore
-import { executeShellCommand, tshell, spawn,shellx, request } from './ext2.ts'
+import { executeShellCommand, tshell, spawn, shellx, request } from './ext2.ts'
 
 // @ts-ignore
 import ExprHelper, { resolveExpr } from './expr.ts';
@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const cmd = 'custom-kit.runCommand'
-	let disposable = vscode.commands.registerCommand(cmd, async (opts: PluginParam ) => {
+	let disposable = vscode.commands.registerCommand(cmd, async (opts: PluginParam) => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		try {
@@ -190,25 +190,25 @@ var iconv = require('iconv-lite');
 
 // 判断字符串是否为UTF-8编码
 function isUTF8(str) {
-  return Buffer.from(str, 'utf8').toString('utf8') === str;
+	return Buffer.from(str, 'utf8').toString('utf8') === str;
 }
 
 function isGarbledUTF8(str) {
 	try {
-	  const buffer = Buffer.from(str, 'utf8');
-	  const decodedString = buffer.toString('utf8');
-	  return decodedString !== str;
+		const buffer = Buffer.from(str, 'utf8');
+		const decodedString = buffer.toString('utf8');
+		return decodedString !== str;
 	} catch (error) {
-	  return true;
+		return true;
 	}
 }
 
 // 将GBK编码转换为UTF-8编码
 function convertToGBK(str) {
-  const buffer = Buffer.from(str);
-  const utf8String = iconv.decode(buffer, 'gbk');
-  
-  return iconv.encode(utf8String, 'utf8');
+	const buffer = Buffer.from(str);
+	const utf8String = iconv.decode(buffer, 'gbk');
+
+	return iconv.encode(utf8String, 'utf8');
 }
 
 async function runCommands(context: vscode.ExtensionContext, inputCmd: Cmd[], exprHelper: CommandUtil, param: PluginParam): Promise<Cmd[]> {
@@ -226,7 +226,7 @@ async function runCommands(context: vscode.ExtensionContext, inputCmd: Cmd[], ex
 				param.result = await fn(extCtx)
 			} catch (e) {
 				let emsg = e.toString()
-				if(!isGarbledUTF8(emsg)) {
+				if (!isGarbledUTF8(emsg)) {
 					emsg = convertToGBK(emsg)
 				}
 				error(emsg)
@@ -295,19 +295,20 @@ async function extEntry(context: vscode.ExtensionContext, pluginParam: PluginPar
 		}
 	})
 
-	let selectedTitle: string | string[] = await exprHelper.showSelectBox(titles, null, '#mainEntry')
-	if (!selectedTitle || selectedTitle.length == 0) {
+	let selectedTitle: vscode.QuickPickItem = await exprHelper.showSelectBox(titles, null, '#mainEntry')
+	if (!selectedTitle) {
 		return pluginParam
 	}
+	// @ts-ignore	
 	if (typeof selectedTitle == 'string') {
-		// string
+		// @ts-ignore
 		let t = filtered.filter(e => selectedTitle == e.title)
 		if (t && t.length) {
 			return await runCommands(context, t, exprHelper, pluginParam)
 		}
-	} else if (selectedTitle.length) {
-		//array 
-		let t = filtered.filter(e => selectedTitle.includes(e.title))
+	} else if (selectedTitle.label) {
+		// @ts-ignore
+		let t = filtered.filter(e => selectedTitle.label == (e.title))
 		if (t && t.length) {
 			return await runCommands(context, t, exprHelper, pluginParam)
 		}
@@ -330,38 +331,169 @@ class CommandUtil {
 		this.context = c
 	}
 
-	public setOrder(id: string, all: string[], selected = []) {
-		this.context.workspaceState.update(id || 'df', [].concat(selected).concat(all))
+	public setOrder(id: string, all: string[] | vscode.QuickPickItem[], selected: string[] | vscode.QuickPickItem[] = []) {
+		this.context.workspaceState.update(id || 'df', this.toPickItems([].concat(selected).concat(all)))
 	}
-	public getOrder(id: string, keys: string[]) {
-		const recent = this.context.workspaceState.get(id || 'df', [] as string[])
-		// 根据最近列表排序
-		if (recent && recent.length) {
-			keys.unshift.apply(keys, recent.filter(key => {
-				const idx = keys.indexOf(key);
 
-				// 存在命令
-				if (idx > -1) {
-					return keys.splice(idx, 1);
-				}
-			}));
+	public getOrderItemString(id: string, all: string[]): string[] {
+		const recent: vscode.QuickPickItem[] = this.context.workspaceState.get(id || 'df', [] as vscode.QuickPickItem[])
+		const nset = new Set<string>();
+		for (let i = 0; i < all.length; i++) {
+			nset.add(all[i])
 		}
-
-		return keys
+		for (let i = 0; i < recent.length; i++) {
+			nset.add(recent[i].label)
+		}
+		let ans: string[] = []
+		for (let i = 0; i < recent.length; i++) {
+			if (nset.has(recent[i].label)) {
+				nset.delete(recent[i].label)
+				ans.push(recent[i].label)
+			}
+		}
+		for (let i = 0; i < all.length; i++) {
+			const element = all[i];
+			if (nset.has(element)) {
+				nset.delete(element)
+				ans.push(element)
+			}
+		}
+		return ans
 	}
-	public async showSelectBox(box: string[], conf: any = { placeHolder: 'Type or select option' }, id = 'box') {
-		const options = box || []
-		// let id = id0;
-		if (id == 'box') {
-			id += _hashCode(options)
+	public getOrderItem(id: string, all: vscode.QuickPickItem[]): vscode.QuickPickItem[] {
+		const recent: vscode.QuickPickItem[] = this.context.workspaceState.get(id || 'df', [] as vscode.QuickPickItem[])
+		const nset = new Set<string>();
+		for (let i = 0; i < all.length; i++) {
+			nset.add(all[i].label)
 		}
+		for (let i = 0; i < recent.length; i++) {
+			nset.add(recent[i].label)
+		}
+		let ans: vscode.QuickPickItem[] = []
+		for (let i = 0; i < recent.length; i++) {
+			if (nset.has(recent[i].label)) {
+				nset.delete(recent[i].label)
+				ans.push(recent[i])
+			}
+		}
+		for (let i = 0; i < all.length; i++) {
+			const element = all[i];
+			if (nset.has(element.label)) {
+				nset.delete(element.label)
+				ans.push(element)
+			}
+		}
+		return ans
 
+	}
+	public getOrder(id: string, keys0: vscode.QuickPickItem[]): vscode.QuickPickItem[] {
+		if (keys0 == null || keys0.length == 0) {
+			return []
+		}
+		try {
+			if (typeof keys0[0] == 'string') {
+				// @ts-ignore
+				return this.toPickItems(this.getOrderItemString(id, keys0))
+			}
+			return this.getOrderItem(id, keys0)
+		} catch (e) {
+			if (id) {
+				this.context.workspaceState.update(id, [])
+			}
+			//@ts-ignore
+			return keys0
+		}
+	}
+	public async showSelectBox(box: string[] | vscode.QuickPickItem[], conf: any = { placeHolder: 'Type or select option' }, id = 'box') :Promise<vscode.QuickPickItem>{
+		//@ts-ignore
+		const options = this.toPickItems(box)
 		const newOptions = this.getOrder(id, options)
 		const selectedOption = await vscode.window.showQuickPick(newOptions, conf);
-		if (selectedOption && selectedOption.length) {
-			this.setOrder(id, [].concat(selectedOption).concat(options))
+		if (selectedOption) {
+			this.setOrder(id, [].concat(selectedOption).concat(newOptions))
 		}
+		if(Array.isArray(selectedOption)) return selectedOption[0]
 		return selectedOption
+	}
+	public toPickItems(all: string[]): vscode.QuickPickItem[] {
+		if (!all || all.length == 0) {
+			return []
+		}
+		return all.map(e => {
+			if (typeof e == 'object') {
+				return e
+			}
+			return {
+				label: e
+			}
+		})
+	}
+	public showSuggestInputPromise(box: string[] | vscode.QuickPickItem[], conf: any = { placeHolder: 'Type or select option' }, id = 'box') {
+		return new Promise((resolve, reject) => {
+			// @ts-ignore
+			const options = this.toPickItems(box)
+			const newOptions = this.getOrder(id, options)
+			const quickPick = vscode.window.createQuickPick()
+			quickPick.title = conf.placeHolder || 'Select option'
+			quickPick.items = newOptions
+			let close = false
+			quickPick.onDidChangeValue(() => {
+				if (quickPick.value && !options.some(e => e.label == quickPick.value)) {
+					quickPick.items = [
+						// @ts-ignore
+						{ label: quickPick.value, flag: true, ok: true },
+						...newOptions,
+					]
+
+				}
+			})
+			let pre = null
+			quickPick.onDidChangeActive(act => {
+				if (act && act.length) {
+					if (pre && !pre.label.includes(act[0].label)) {
+						if (pre.ok) {
+							pre.ok = false
+						}
+						pre = null
+					}
+				}
+
+			})
+			quickPick.onDidAccept(() => {
+				const selection = quickPick?.selectedItems[0]
+				let t = selection.label
+				// @ts-ignore
+				if (selection.ok && pre) {
+					quickPick.hide()
+					close = true
+					quickPick.dispose()
+					if (selection) {
+						this.setOrder(id, [].concat(selection).concat(newOptions))
+					}
+					resolve(t)
+				} else {
+					if (pre) {
+						pre.ok = false
+					}
+					pre = selection
+					// @ts-ignore
+					selection.ok = true
+					quickPick.value = selection.label
+					quickPick.show()
+				}
+
+			})
+
+
+			quickPick.onDidHide(() => {
+				if (!close) {
+					resolve(null)
+				}
+				quickPick.dispose()
+			})
+			quickPick.show()
+		})
+
 	}
 	private getOutputChannel() {
 		let panel = GlobalObject.panel
@@ -418,11 +550,25 @@ class CommandUtil {
 
 
 
+function _getStr(w: vscode.QuickPickItem | string): string {
+	if (typeof w == 'string') {
+		return w
+	}
+	if (!w) {
+		return '0'
+	}
+	return w.label || w.description
+}
 
 function _hashCode(...u) {
 	if (u == null || u.length == 0) return -1
 	var hash = 0, i, chr;
-	let s = u.join(',')
+	// let s = u.join(',')
+	var us = []
+	for (i = 0; i < u.length; i++) {
+		us.push(_getStr(u[i]))
+	}
+	let s = us.join(',')
 	if (s == null || s.length === 0) return hash;
 	for (i = 0; i < s.length; i++) {
 		chr = s.charCodeAt(i);
@@ -453,7 +599,7 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 	}
 	return {
 		ctx: ctx,
-		process:process,
+		process: process,
 		window: vscode.window,
 		payload: params,
 		current: params?.current,
@@ -533,6 +679,29 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		input: (value: string, otherOpt: vscode.InputBoxOptions = {}): Thenable<string | undefined> => {
 			return helper?.exprHelper.input(value, otherOpt)
 		},
+		inputx: (options: vscode.QuickPickItem[] | string[] = [], opt: any = {}, it: string) => {
+			let id = it != null ? it : params.current?.title;
+			if (id.includes('#')) {
+				id = id.replace(/#/g, '#0')
+			}
+			let arr = []
+			if (typeof options == 'string') {
+				arr = arr.concat(options)
+			} else if (options && typeof options == 'object' && !Array.isArray(options)) {
+				// @ts-ignore
+				for (let i in options) {
+					let k = i;
+					let v = options[i]
+					arr.push({
+						label: v,
+						detail: k,
+					})
+				}
+			} else {
+				arr = options || []
+			}
+			return helper?.showSuggestInputPromise(arr, opt, id)
+		},
 		/**
 		 * Generates a quick pick selection box.
 		 *
@@ -541,10 +710,10 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		 * @param {string} it - the third parameter (it use for sort the options item)
 		 * @return {type} the return value of the function
 		 */
-		quickPick: (options: string[], config: vscode.QuickPickOptions = {}, it = null) => {
+		quickPick: (options: vscode.QuickPickItem[] | string[], config: vscode.QuickPickOptions = {}, it = null) => {
 			let id = it != null ? it : params.current?.title;
 			if (id.includes('#')) {
-				id = id.replace(/#/g, '')
+				id = id.replace(/#/g, '#0')
 			}
 			return helper.showSelectBox(options, config, id)
 		},

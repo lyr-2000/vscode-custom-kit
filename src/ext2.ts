@@ -22,13 +22,15 @@ function isPathExists(path) {
     return false;
   }
 }
-function getRunnableShell(sh :string[]): string|boolean {
+function getRunnableShell(sh: string[]): string | boolean {
+  let ans: boolean | string = true
   for (let i = 0; i < sh.length; i++) {
     if (isPathExists(sh[i])) {
-      return sh[i]
+      ans = sh[i]
+      break
     }
   }
-  return true
+  return ans
 }
 
 // @ts-ignore
@@ -89,6 +91,17 @@ export async function spawn(cmd, stdin = null, args = null, other: any = {}) {
         ls.stdin.end()
       }
     }
+    var timeout = setTimeout(() => {
+      try {
+        process.kill(-ls.pid, 'SIGKILL');
+      } catch (e) {
+        console.error(e, e.stack)
+      }
+    }, 1000 * 60); //60 seconds to be killed 
+    ls.on('exit', () => {
+      clearTimeout(timeout)
+    })
+    // timeout is 60 seconds 
     let stdoutData = "";
     let stderrData = "";
     ls.stderr.setEncoding('utf8')
