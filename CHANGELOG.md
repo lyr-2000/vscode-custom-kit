@@ -21,3 +21,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - support custom path and env for run shell command
 
 
+
+## [V0.1.533]
+
+### Added 
+-The timeout cleaning program after the shell command is optimized, solving the problem that the command blocks cannot withdraw

@@ -11,7 +11,7 @@ function checkParam(...w) {
   return true
 }
 
-var onlyPath = require('path')
+var pathLib = require('path')
 
 const fs = require('fs')
 function isPathExists(path) {
@@ -66,63 +66,84 @@ export async function shellx(cmd, stdin = null, args = [], other = {
   if (shell && typeof shell == 'string') {
     // @ts-ignore
     other.shell = shell
-    let dir = onlyPath.dirname(shell)
-    other.env.PATH = dir + onlyPath.delimiter + other.env.PATH
+    let dir = pathLib.dirname(shell)
+    other.env.PATH = dir + pathLib.delimiter + other.env.PATH
   }
 
   //@ts-ignore
   if (envex.PATH) {
     // @ts-ignore
-    other.env.PATH = envex.PATH + onlyPath.delimiter + process.env.PATH;
+    other.env.PATH = [].concat(envex.PATH).join(pathLib.delimiter) + pathLib.delimiter + process.env.PATH;
   }
-
+  // @ts-ignore
   return spawn(cmd, stdin, args, other)
 
 }
 
+// @ts-ignore
 export async function spawn(cmd, stdin = null, args = null, other: any = {}) {
   checkParam(cmd, stdin, args)
 
   return new Promise(function (resolve, reject) {
-    const ls = childProcess.spawn(cmd, args, other);
+    //@ts-ignore
+    const shProc = childProcess.spawn(cmd, args, other);
     if (stdin && typeof stdin == 'string') {
-      if (ls.stdin && ls.stdin.writable) {
-        ls.stdin.write(stdin);
-        ls.stdin.end()
+      //@ts-ignore
+      if (shProc.stdin && shProc.stdin.writable) {
+        // @ts-ignore
+        shProc.stdin.write(stdin);
+        // @ts-ignore
+        shProc.stdin.end()
       }
+    }else if (stdin == null && shProc.stdin && shProc.stdin.writable) {
+      shProc.stdin.end()
     }
     var timeout = setTimeout(() => {
       try {
-        process.kill(-ls.pid, 'SIGKILL');
+        // @ts-ignore
+        // @ts-ignore
+        if (shProc.stdin && shProc.stdin.writable) {
+          // @ts-ignore
+          shProc.stdin.end()
+        }
       } catch (e) {
         console.error(e, e.stack)
+      } finally {
+        if (!shProc.killed) {
+          shProc.kill()
+        }
       }
-    }, 1000 * 60); //60 seconds to be killed 
-    ls.on('exit', () => {
+    }, 1000 * (other?.timeout || 25)); //timeout  to be killed 
+    // @ts-ignore
+    shProc?.on('exit', () => {
       clearTimeout(timeout)
     })
     // timeout is 60 seconds 
     let stdoutData = "";
     let stderrData = "";
-    ls.stderr.setEncoding('utf8')
-    ls.stdout.setEncoding('utf8')
-    ls.stdout.on('data', (data) => {
+    // @ts-ignore
+    shProc.stderr?.setEncoding('utf8')
+    // @ts-ignore
+    shProc.stdout?.setEncoding('utf8')
+    // @ts-ignore
+    shProc.stdout?.on('data', (data) => {
       // Edit thomas.g: stdoutData = Buffer.concat([stdoutData, chunk]);
       stdoutData += data;
     });
-
-    ls.stderr.on('data', (data) => {
+    // @ts-ignore
+    shProc.stderr?.on('data', (data) => {
       stderrData += data;
     });
-
-    ls.on('close', (code) => {
+    // @ts-ignore
+    shProc?.on('close', (code) => {
       if (stderrData) {
         reject(stderrData);
       } else {
         resolve(stdoutData);
       }
     });
-    ls.on('error', (err) => {
+    // @ts-ignore
+    shProc.on('error', (err) => {
       reject(err);
     });
   })

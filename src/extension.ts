@@ -639,6 +639,7 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 	return {
 		ctx: ctx,
 		process: process,
+		JSON: JSON,
 		window: vscode.window,
 		payload: params,
 		current: params?.current,

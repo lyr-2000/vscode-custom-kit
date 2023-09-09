@@ -2,7 +2,7 @@
   "name": "custom-kit",
   "displayName": "vscodeScript",
   "description": "vscode custom shell and script command runner",
-  "version": "0.1.531",
+  "version": "0.1.533",
   "icon": "images/cobalt2.png",
   "publisher": "lyr-2000",
   "bugs": {
