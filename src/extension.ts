@@ -323,6 +323,20 @@ const GlobalObject = {
 	panel: null
 }
 
+function debounce(func, wait) {
+	let timeout;
+
+	return function () {
+		let context = this; // 保存this指向
+		let args = arguments; // 拿到event对象
+
+		clearTimeout(timeout)
+		timeout = setTimeout(function () {
+			func.apply(context, args)
+		}, wait);
+	}
+}
+
 class CommandUtil {
 	private context: vscode.ExtensionContext
 	public exprHelper = new ExprHelper();
@@ -404,7 +418,7 @@ class CommandUtil {
 			return keys0
 		}
 	}
-	public async showSelectBox(box: string[] | vscode.QuickPickItem[], conf: any = { placeHolder: 'Type or select option' }, id = 'box') :Promise<vscode.QuickPickItem>{
+	public async showSelectBox(box: string[] | vscode.QuickPickItem[], conf: any = { placeHolder: 'Type or select option' }, id = 'box'): Promise<vscode.QuickPickItem> {
 		//@ts-ignore
 		const options = this.toPickItems(box)
 		const newOptions = this.getOrder(id, options)
@@ -412,7 +426,7 @@ class CommandUtil {
 		if (selectedOption) {
 			this.setOrder(id, [].concat(selectedOption).concat(newOptions))
 		}
-		if(Array.isArray(selectedOption)) return selectedOption[0]
+		if (Array.isArray(selectedOption)) return selectedOption[0]
 		return selectedOption
 	}
 	public toPickItems(all: string[]): vscode.QuickPickItem[] {
@@ -436,21 +450,42 @@ class CommandUtil {
 			const quickPick = vscode.window.createQuickPick()
 			quickPick.title = conf.placeHolder || 'Select option'
 			quickPick.items = newOptions
-			let close = false
-			quickPick.onDidChangeValue(() => {
-				if (quickPick.value && !options.some(e => e.label == quickPick.value)) {
-					quickPick.items = [
-						// @ts-ignore
-						{ label: quickPick.value, flag: true, ok: true },
-						...newOptions,
-					]
-
+			const _accept = () => {
+				let close = false
+				return (s: any) => {
+					if (!close) {
+						close = true
+						quickPick.dispose()
+						resolve(s)
+					}
 				}
+			}
+			const accept = _accept()
+
+			const userEdit = {
+				label: '',
+				flag: true,
+				ok: true,
+				init: true,
+			}
+			const changeUserEdit = debounce(() => {
+				if (quickPick.value && userEdit.label != quickPick.value) {
+					if(newOptions.some(e => e.label.startsWith(quickPick.value))) {
+						return
+					}
+					userEdit.label = quickPick.value
+					userEdit.init = false
+					quickPick.items = [].concat(userEdit).concat(newOptions)
+				}
+			}, 500)
+			quickPick.onDidChangeValue(() => {
+				changeUserEdit()
 			})
 			let pre = null
 			quickPick.onDidChangeActive(act => {
 				if (act && act.length) {
-					if (pre && !pre.label.includes(act[0].label)) {
+					let first = act[0]
+					if (pre  && pre.label != (quickPick.value)) {
 						if (pre.ok) {
 							pre.ok = false
 						}
@@ -463,15 +498,18 @@ class CommandUtil {
 				const selection = quickPick?.selectedItems[0]
 				let t = selection.label
 				// @ts-ignore
-				if (selection.ok && pre) {
-					quickPick.hide()
-					close = true
-					quickPick.dispose()
+				if (selection.ok && pre && pre.label == selection.label) {
 					if (selection) {
 						this.setOrder(id, [].concat(selection).concat(newOptions))
 					}
-					resolve(t)
+					accept(t)
+					return
 				} else {
+					// @ts-ignore
+					if ((selection.ok) &&  quickPick.selectedItems.length == 1 && quickPick.selectedItems[0]?.label == quickPick.value) {
+						accept(t)
+						return
+					}
 					if (pre) {
 						pre.ok = false
 					}
@@ -486,10 +524,7 @@ class CommandUtil {
 
 
 			quickPick.onDidHide(() => {
-				if (!close) {
-					resolve(null)
-				}
-				quickPick.dispose()
+				accept(null)
 			})
 			quickPick.show()
 		})
