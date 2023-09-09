@@ -177,6 +177,7 @@ This interpolation expression can be used in the When expression and Params in t
 | tshell | function | Create VSCode Terminal and execute the shell command |
 | expr | function| Can analyze ${file} and other expressions into corresponding text|
 | input |function | open vscode input box |
+| inputx |function | Open the InputBox framework, you can enter and select other candidates|
 | quickPick |function | open vscode quickPickBox |
 | codeCmd |function | call vscode commands |
 | selectedText |function |  Get the current selected text |
@@ -281,7 +282,7 @@ This interpolation expression can be used in the When expression and Params in t
                 "cut":"cut -d' ' -f1"
             },
             "command": [
-                "let i = await input(params.cut,{placeHolder:'shell command script'})",
+                "let i = await inputx(params,{placeHolder:'shell command script'})",
                 "if(!i) return;",
                 "let str = selectedText()",
                 "let o = await shellx(i,str)",

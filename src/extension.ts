@@ -442,7 +442,7 @@ class CommandUtil {
 			}
 		})
 	}
-	public showSuggestInputPromise(box: string[] | vscode.QuickPickItem[], conf: any = { placeHolder: 'Type or select option' }, id = 'box') {
+	public showSuggestInputPromise(box: string[] | vscode.QuickPickItem[], conf: any = { placeHolder: 'Type or select option', default: true }, id = 'box') {
 		return new Promise((resolve, reject) => {
 			// @ts-ignore
 			const options = this.toPickItems(box)
@@ -450,12 +450,19 @@ class CommandUtil {
 			const quickPick = vscode.window.createQuickPick()
 			quickPick.title = conf.placeHolder || 'Select option'
 			quickPick.items = newOptions
+			if (newOptions && newOptions.length == 1 && (conf.default||conf.default == null)) {
+				quickPick.value = newOptions[0].label
+			}
+
 			const _accept = () => {
 				let close = false
 				return (s: any) => {
 					if (!close) {
 						close = true
 						quickPick.dispose()
+						if(s) {
+							this.setOrder(id, [].concat({ label: s}).concat(newOptions))
+						}
 						resolve(s)
 					}
 				}
@@ -468,9 +475,9 @@ class CommandUtil {
 				ok: true,
 				init: true,
 			}
-			const changeUserEdit = debounce(() => {
+			const changeFirstItem = debounce(() => {
 				if (quickPick.value && userEdit.label != quickPick.value) {
-					if(newOptions.some(e => e.label.startsWith(quickPick.value))) {
+					if (newOptions.some(e => e.label.startsWith(quickPick.value))) {
 						return
 					}
 					userEdit.label = quickPick.value
@@ -479,13 +486,13 @@ class CommandUtil {
 				}
 			}, 500)
 			quickPick.onDidChangeValue(() => {
-				changeUserEdit()
+				changeFirstItem()
 			})
 			let pre = null
 			quickPick.onDidChangeActive(act => {
 				if (act && act.length) {
 					let first = act[0]
-					if (pre  && pre.label != (quickPick.value)) {
+					if (pre && pre.label != (quickPick.value)) {
 						if (pre.ok) {
 							pre.ok = false
 						}
@@ -499,14 +506,11 @@ class CommandUtil {
 				let t = selection.label
 				// @ts-ignore
 				if (selection.ok && pre && pre.label == selection.label) {
-					if (selection) {
-						this.setOrder(id, [].concat(selection).concat(newOptions))
-					}
 					accept(t)
 					return
 				} else {
 					// @ts-ignore
-					if ((selection.ok) &&  quickPick.selectedItems.length == 1 && quickPick.selectedItems[0]?.label == quickPick.value) {
+					if ((selection.ok) && quickPick.selectedItems.length == 1 && quickPick.selectedItems[0]?.label == quickPick.value) {
 						accept(t)
 						return
 					}
@@ -714,7 +718,7 @@ function makeCtx(ctx: any, helper: CommandUtil, params) {
 		input: (value: string, otherOpt: vscode.InputBoxOptions = {}): Thenable<string | undefined> => {
 			return helper?.exprHelper.input(value, otherOpt)
 		},
-		inputx: (options: vscode.QuickPickItem[] | string[] = [], opt: any = {}, it: string) => {
+		inputx: (options: vscode.QuickPickItem[] | string[] = [], opt: any = { default: true }, it: string) => {
 			let id = it != null ? it : params.current?.title;
 			if (id.includes('#')) {
 				id = id.replace(/#/g, '#0')
