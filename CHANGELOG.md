@@ -26,3 +26,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added 
 -The timeout cleaning program after the shell command is optimized, solving the problem that the command blocks cannot withdraw
+
+## [V0.1.55]
+
+### Added 
+- Streaed the proces.env parameter when fixing the shell

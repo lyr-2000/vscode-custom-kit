@@ -38,7 +38,9 @@ export async function shellx(cmd, stdin = null, args = [], other = {
   cwd: vscode.workspace.rootPath,
   encoding: 'utf8',
   shell: true,
-  env: process.env,
+  env: {
+    ...process.env,
+  },
   // stdio: 'inherit',
 }) {
   checkParam(cmd, stdin, args)
@@ -50,6 +52,12 @@ export async function shellx(cmd, stdin = null, args = [], other = {
   const configuration = vscode.workspace.getConfiguration();
   let shell = configuration.get('custom-kit.shell.path') || true
   const envex = configuration.get('custom-kit.shell.env') || {}
+  if(other.env==null) {
+    other.env = {}
+  }
+  // for (let key in process.env) {
+  //   other.env[key] = process.env[key];
+  // }
   // @ts-ignore
   for (let k in envex) {
     if (k != 'PATH') {
@@ -152,6 +160,9 @@ export async function spawn(cmd, stdin = null, args = null, other: any = {}) {
 export function executeShellCommand(command: string, opt0 = {}, opt = {
   cwd: vscode.workspace.rootPath,
   encoding: 'utf8',
+  env: {
+    ...process.env
+  }
 
 }): Promise<string> {
   checkParam(command, opt0, opt)
